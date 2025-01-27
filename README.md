@@ -1,4 +1,4 @@
-# VoxPopuliPlatform
+# Vox Populi Platform
 The evolution of surveys has made them an indispensable tool in fields such as marketing,
 public opinion research, healthcare, education, and more.
 Surveys have evolved from door-to-door surveys, to phone surveys, to digital platforms,
@@ -18,11 +18,11 @@ in global discussions. This data is ready to be used to create up-to-date, more 
 more diverse surveys.
 
 To harness this data in the most effective way, we are developing the E2EE (End-to-End
-Encryption) Platform. With the E2EE Platform, the user could create a system which will
+Encryption) Platform. With the VP Platform, the user could create a system which will
 generate connections to the participants’ instant messaging apps (Whatsapp, Telegram and
 Signal), manage the connections, feed a database constant data from chats of the
 particiapte’s choosing and anonymize this data.
-The E2EE Platform will solve the problems of out-of-date surveys, of misleading responses,
+The VP Platform will solve the problems of out-of-date surveys, of misleading responses,
 and of low participation rates.
 
 Our platform is unique because of its ability to connect the user to apps with different types
