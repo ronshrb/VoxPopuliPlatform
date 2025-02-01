@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f7fb;
+            color: #333;
+            display: flex;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #0a1a2f;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .sidebar h2 {
+            margin-top: 0;
+        }
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        .sidebar ul li {
+            margin: 20px 0;
+        }
+        .sidebar ul li a {
+            text-decoration: none;
+            color: white;
+        }
+        .main {
+            flex: 1;
+            padding: 20px;
+        }
+        .main h1 {
+            margin-top: 0;
+        }
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        table th {
+            background-color: #f4f4f4;
+        }
+        .chart-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Dashboard</h2>
+        <ul>
+            <li><a href="/dashboard">Overview</a></li>
+            <li><a href="/users" class="active">Users</a></li>
+            <li><a href="/database">Database</a></li>
+        </ul>
+    </div>
+    <div class="main">
+        <h1>Users</h1>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>User Name</th>
+                        <th>Chats Shared</th>
+                        <th>Active Chats</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Example data, replace with dynamic content -->
+                    <tr>
+                        <td>1</td>
+                        <td>John Doe</td>
+                        <td>WhatsApp, Telegram</td>
+                        <td>15</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Jane Smith</td>
+                        <td>Signal</td>
+                        <td>8</td>
+                    </tr>
+                    <!-- Dynamic rows will go here -->
+                </tbody>
+            </table>
+        </div>
+    <div class="chart-container" style="display: flex; justify-content: space-between;">
+        <div>
+            <h2>Number of Users by Date</h2>
+            <img src="/plot/users" alt="Number of Users by Date">
+        </div>
+        <div>
+            <h2>Number of Active Chats by Date</h2>
+            <img src="/plot/chats" alt="Number of Active Chats by Date">
+        </div>
+    </div>
+</body>
+</html>
