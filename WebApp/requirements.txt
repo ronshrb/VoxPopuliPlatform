@@ -1,0 +1,7 @@
+pyarrow
+pandas
+streamlit
+qrcode
+io
+PIL
+streamlit_authenticator
