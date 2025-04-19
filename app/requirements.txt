@@ -35,3 +35,4 @@ watchdog==6.0.0
 cloud-sql-python-connector
 pg8000
 pymysql
+matplotlib
