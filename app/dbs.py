@@ -13,7 +13,7 @@ db_pass = os.environ["users_db_pass"]  # comes securely from Secret Manager
 
 def getconn():
     conn = connector.connect(
-        "YOUR_PROJECT_ID:YOUR_REGION:YOUR_INSTANCE_NAME",
+        "seminar-e2ee:me-west1:matrix-db",
         "pg8000",
         user=db_user,
         password=db_pass,
