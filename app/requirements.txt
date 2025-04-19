@@ -38,4 +38,4 @@ pymysql
 matplotlib
 seaborn
 datetime
-
+sqlalchemy
