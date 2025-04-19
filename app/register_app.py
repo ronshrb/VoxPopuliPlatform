@@ -1,7 +1,7 @@
 import streamlit as st
 import bcrypt
 import pandas as pd
-import dbs
+import dbs2
 import qrcode
 from io import BytesIO
 from PIL import Image
