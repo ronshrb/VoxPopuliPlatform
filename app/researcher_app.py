@@ -1,7 +1,7 @@
 import pandas as pd
 import bcrypt
 import streamlit as st
-import dbs
+import dbs2
 import matplotlib.pyplot as plt
 import io
 import base64
