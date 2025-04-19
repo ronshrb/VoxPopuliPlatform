@@ -3,7 +3,7 @@ FROM python:3.11
 EXPOSE 8080
 WORKDIR /app
 
-COPY . ./
+COPY webapp /webapp
 
 RUN pip install -r requirements.txt
 
