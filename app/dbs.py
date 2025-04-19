@@ -37,7 +37,7 @@ def init_data():
         'HashedPassword': hashed_passwords,
         'Role': user_roles,
         'Active?': [True] * num_users,
-        'Registration Date': [(datetime.now() - timedelta(days=random.randint(1, 365))).strftime('%Y-%m-%d') for _ in
+        'Created At': [(datetime.now() - timedelta(days=random.randint(1, 365))).strftime('%Y-%m-%d') for _ in
                               range(num_users)]
     }
 
