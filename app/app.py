@@ -15,6 +15,7 @@ from user_app import user_app
 from researcher_app import researcher_app
 from register_app import register_page
 import dbs
+import dbs2
 
 # Custom CSS for styling
 st.markdown("""
