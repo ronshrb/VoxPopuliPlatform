@@ -3,7 +3,7 @@ import qrcode
 from io import BytesIO
 from PIL import Image
 import pandas as pd
-import dbs2
+import dbs
 from datetime import datetime
 
 
