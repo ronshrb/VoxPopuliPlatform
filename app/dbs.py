@@ -148,6 +148,6 @@ def get_chat_messages(chat_id):
 # Function to get a user by email (case-insensitive)
 def get_user_by_email(email):
     with pool.connect() as connection:
-        stmt = select(users_table).where(users_table.c.Email.ilike(email))
+        stmt = select(users_table).where(users_table.c.Email==email)
         result = connection.execute(stmt).fetchone()
         return dict(result) if result else None
