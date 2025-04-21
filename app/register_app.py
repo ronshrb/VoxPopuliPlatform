@@ -62,7 +62,7 @@ def register_user(username, email, password, role, project_id):
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     # Add user to the database
-    dbs.add_user(email, username, hashed_password, role="User", active=True, project_id=project_id)
+    dbs.add_user(email, username, hashed_password, role="User", active=True)
 
     # Only create a welcome chat for regular users
     if role == "User":
