@@ -49,6 +49,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Display all users using get_users
+st.markdown("### List of All Users")
+users = dbs.get_users()
+if users:
+    for user in users:
+        st.write(f"Email: {user['Email']}, Role: {user['Role']}")
+else:
+    st.write("No users found.")
+
 # Initialize session state for login
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
