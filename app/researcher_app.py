@@ -126,7 +126,7 @@ def researcher_app(email):
 
     # Page title
     st.title("Researcher Dashboard")
-    st.success(f"Welcome, {username}!")
+    st.sidebar.success(f"Welcome, {username}!")
 
     if not researcher_projects:
         st.warning("You are not currently assigned as a lead researcher for any projects.")
@@ -138,7 +138,7 @@ def researcher_app(email):
         "Dashboard Menu",
         ["Project Selection", "Project Overview", "Chat Analysis", "User Management", "Data Export"]
     )
-
+    st.sidebar.success(f"Welcome, {username}!")
     # Get researcher's projects for selection
     project_options = [p['ProjectName'] for p in researcher_projects]
     projects_dict = {p['ProjectName']: p['ProjectID'] for p in researcher_projects}
@@ -254,3 +254,59 @@ def researcher_app(email):
             st.info("No activity data available for this project.")
 
     # Additional menu options (Chat Analysis, User Management, Data Export) can be updated similarly
+    elif menu == "User Management":
+        st.header("User Management")
+        st.markdown("Manage users in your project.")
+
+        # Get the selected project
+        project_id = st.session_state["selected_project"]
+        project_name = st.session_state["selected_project_name"]
+
+        # Fetch users in the project
+        project_users = [user for user in dbs.get_users() if user['ProjectID'] == project_id]
+
+        # Display users in the project
+        st.subheader(f"Users in Project: {project_name}")
+        if not project_users:
+            st.info("No users are currently registered in this project.")
+        else:
+            users_df = pd.DataFrame(project_users)
+            st.dataframe(users_df[['UserID', 'Username', 'Email', 'Role', 'Active', 'CreatedAt']])
+
+        st.markdown("---")
+
+        # Form to register a new user
+        st.subheader("Register a New User")
+        with st.form("register_user_form"):
+            username = st.text_input("Username", key="new_user_username")
+            email = st.text_input("Email", key="new_user_email")
+            password = st.text_input("Password", type="password", key="new_user_password")
+            confirm_password = st.text_input("Confirm Password", type="password", key="new_user_confirm_password")
+            role = st.selectbox("Role", ["User", "Researcher"], key="new_user_role")
+            active = st.checkbox("Active", value=True, key="new_user_active")
+
+            submit_button = st.form_submit_button("Register User")
+
+            if submit_button:
+                if not username or not email or not password or not confirm_password:
+                    st.error("Please fill in all fields.")
+                elif password != confirm_password:
+                    st.error("Passwords do not match.")
+                else:
+                    # Hash the password
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+                    # Add the user to the database
+                    try:
+                        dbs.add_user(
+                            email=email,
+                            username=username,
+                            hashed_password=hashed_password,
+                            role=role,
+                            active=active,
+                            project_id=project_id
+                        )
+                        st.success(f"User {username} registered successfully!")
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(f"Error registering user: {str(e)}")

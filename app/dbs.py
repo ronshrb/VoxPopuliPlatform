@@ -1,6 +1,6 @@
 import sqlalchemy
 from google.cloud.sql.connector import Connector
-from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, create_engine
+from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, create_engine, update
 from sqlalchemy.sql import insert, select
 from datetime import datetime, timedelta
 import os
@@ -129,7 +129,14 @@ def get_user_chats(user_id):
         stmt = select(chats_table).where(chats_table.c.UserID == user_id)
         result = connection.execute(stmt)
         return [dict(row._mapping) for row in result]
-
+    
+def update_chat(chat_id, donated, start_date):
+    with pool.connect() as connection:
+        stmt = update(chats_table).where(chats_table.c.ChatID == chat_id).values(
+            Donated=donated,
+            StartDate=start_date
+        )
+        connection.execute(stmt)
 # # Function to add a message
 # def add_message(chat_id, user_id, message, sentiment="Neutral"):
 #     with pool.connect() as connection:
