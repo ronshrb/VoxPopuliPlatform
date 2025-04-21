@@ -137,49 +137,36 @@ elif not st.session_state["logged_in"]:
             if st.button("Login", key="login_button"):
                 if not email or not password:
                     st.error("Please enter both email and password.")
-                else:
-                    # Find user by email - using case-insensitive comparison
-                    user_matches = dbs.get_user_by_email(email)
-
-                    if not user_matches.empty:
-                        # Get the stored hash from the database
-                        stored_hashed_password = user_matches.iloc[0]['HashedPassword']
-                        user_role = user_matches.iloc[0]['Role']
-
-                        # Check if role matches
-                        if role != user_role:
-                            st.error(f"This email is registered as a {user_role}, not a {role}.")
                         else:
-                            try:
-                                # Debug information about the password check
-                                if st.session_state["debug_mode"]:
-                                    # Show detailed debug info about the password check
-                                    debug_info = dbs.debug_password(email, password)
-                                    st.write("Password Debug Info:", debug_info)
+            try:
+                # Debug information about the password check
+                if st.session_state["debug_mode"]:
+                    # Show detailed debug info about the password check
+                    debug_info = dbs.debug_password(email, password)
+                    st.write("Password Debug Info:", debug_info)
 
-                                # Check if the provided password matches the hashed password
-                                if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password):
-                                    # Login successful for both user and researcher roles
-                                    st.session_state["logged_in"] = True
-                                    st.session_state["role"] = user_role
-                                    st.session_state["email"] = user_matches.iloc[0]['Email']
-                                    st.success("Login successful!")
-                                    st.rerun()
-                                else:
-                                    st.error("Invalid password.")
-                                    if st.session_state["debug_mode"]:
-                                        st.write("Password check failed. Expected:", stored_hashed_password)
-                                        st.write("Input password:", password)
-                                        st.write("Type of stored hash:", type(stored_hashed_password))
-                            except Exception as e:
-                                st.error(f"Login error: {str(e)}")
-                                if st.session_state["debug_mode"]:
-                                    st.write("Exception details:", str(e))
-                                    import traceback
-
-                                    st.write("Traceback:", traceback.format_exc())
-                    else:
-                        st.error("User not found. Please check your email or register.")
+                # Check if the provided password matches the hashed password
+                if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                    # Login successful for both user and researcher roles
+                    st.session_state["logged_in"] = True
+                    st.session_state["role"] = user_role
+                    st.session_state["email"] = user_data['Email']
+                    st.success("Login successful!")
+                    st.rerun()
+                else:
+                    st.error("Invalid password.")
+                    if st.session_state["debug_mode"]:
+                        st.write("Password check failed. Expected:", stored_hashed_password)
+                        st.write("Input password:", password)
+                        st.write("Type of stored hash:", type(stored_hashed_password))
+            except Exception as e:
+                st.error(f"Login error: {str(e)}")
+                if st.session_state["debug_mode"]:
+                    st.write("Exception details:", str(e))
+                    import traceback
+                    st.write("Traceback:", traceback.format_exc())
+    else:
+        st.error("User not found. Please check your email or register.")
 
         with col2:
             if st.button("Register New Account", key="register_button"):
