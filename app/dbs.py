@@ -153,6 +153,49 @@ def get_user_chats(user_id):
 # Function to get a user by email (case-insensitive)
 def get_user_by_email(email):
     with pool.connect() as connection:
-        stmt = select(users_table).where(users_table.c.Email==email)  # case-insensitive match
+        stmt = select(users_table).where(users_table.c.Email==email)
         result = connection.execute(stmt).fetchone()
         return dict(result._mapping) if result else None
+
+# Function to fetch all projects
+def get_projects():
+    with pool.connect() as connection:
+        stmt = select(projects_table)
+        result = connection.execute(stmt)
+        return [dict(row._mapping) for row in result]
+    
+
+# Function to fetch all chats for a specific project
+def get_project_chats(project_id):
+    with pool.connect() as connection:
+        stmt = select(chats_table).where(chats_table.c.ProjectID == project_id)
+        result = connection.execute(stmt)
+        return [dict(row._mapping) for row in result]
+    
+# Function to fetch a project by its ID
+def get_project_by_id(project_id):
+    with pool.connect() as connection:
+        stmt = select(projects_table).where(projects_table.c.ProjectID == project_id)
+        result = connection.execute(stmt).fetchone()
+        return dict(result._mapping) if result else None
+    
+# Function to fetch a user by their ID
+def get_user_by_id(user_id):
+    with pool.connect() as connection:
+        stmt = select(users_table).where(users_table.c.UserID == user_id)
+        result = connection.execute(stmt).fetchone()
+        return dict(result._mapping) if result else None
+    
+# Function to fetch a chat by its ID
+def get_chat_by_id(chat_id):
+    with pool.connect() as connection:
+        stmt = select(chats_table).where(chats_table.c.ChatID == chat_id)
+        result = connection.execute(stmt).fetchone()
+        return dict(result._mapping) if result else None
+
+# Function to fetch all projects for a specific researcher
+def get_researcher_projects(researcher_id):
+    with pool.connect() as connection:
+        stmt = select(projects_table).where(projects_table.c.LeadResearcher == researcher_id)
+        result = connection.execute(stmt)
+        return [dict(row._mapping) for row in result]
