@@ -100,21 +100,6 @@ def add_user(email, username, hashed_password, role, active=True):
         )
         connection.execute(stmt)
 
-import bcrypt
-from sqlalchemy import update        
-with pool.connect() as connection:
-    # Fetch all users
-    result = connection.execute(users_table.select())
-    users = result.fetchall()
-
-    for user in users:
-        user_id = user['UserID']
-        password = user['HashedPassword']  # Replace with the actual plain password if known
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-        # Update the database with the new hashed password
-        stmt = update(users_table).where(users_table.c.UserID == user_id).values(HashedPassword=hashed_password)
-        connection.execute(stmt)
 
 # Function to fetch all users
 def get_users():

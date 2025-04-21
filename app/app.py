@@ -13,7 +13,7 @@ import bcrypt
 import pandas as pd
 from user_app import user_app
 from researcher_app import researcher_app
-from register_app import register_page
+# from register_app import register_page
 import dbs
 
 
@@ -104,10 +104,10 @@ if "logged_in" not in st.session_state:
 
 
 # Main app
-if st.session_state["registration_mode"]:
-    # Call the registration page function
-    register_page()
-elif not st.session_state["logged_in"]:
+# if st.session_state["registration_mode"]:
+#     # Call the registration page function
+#     register_page()
+if not st.session_state["logged_in"]:
     # Login header
     st.markdown("<h1 class='main-header'>Welcome to VoxPopuli 🗣️</h1>", unsafe_allow_html=True)
     st.markdown("<p class='sub-header'>Collaborative Research Platform for Voice and Opinion Analysis</p>",
@@ -188,10 +188,10 @@ elif not st.session_state["logged_in"]:
                     else:
                         st.error("User not found. Please check your email or register.")
 
-        with col2:
-            if st.button("Register New Account", key="register_button"):
-                st.session_state["registration_mode"] = True
-                st.rerun()
+        # with col2:
+        #     if st.button("Register New Account", key="register_button"):
+        #         st.session_state["registration_mode"] = True
+        #         st.rerun()
 
         # # Sample credentials for easy testing
         # with st.expander("Sample Credentials (for testing)"):
