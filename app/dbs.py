@@ -178,6 +178,19 @@ def get_project_chats(project_id):
         stmt = select(chats_table).where(chats_table.c.ProjectID == project_id)
         result = connection.execute(stmt)
         return [dict(row._mapping) for row in result]
+
+
+def get_users_by_project(project_id):
+    with pool.connect() as connection:
+        # Join users_table and chats_table on UserID, and filter by ProjectID
+        stmt = (
+            select(users_table)
+            .join(chats_table, users_table.c.UserID == chats_table.c.UserID)
+            .where(chats_table.c.ProjectID == project_id)
+        )
+        result = connection.execute(stmt)
+        # Return the list of users as dictionaries
+        return [dict(row._mapping) for row in result]
     
 # Function to fetch a project by its ID
 def get_project_by_id(project_id):

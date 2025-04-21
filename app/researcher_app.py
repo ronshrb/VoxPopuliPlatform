@@ -126,7 +126,6 @@ def researcher_app(email):
 
     # Page title
     st.title("Researcher Dashboard")
-    st.sidebar.success(f"Welcome, {username}!")
 
     if not researcher_projects:
         st.warning("You are not currently assigned as a lead researcher for any projects.")
@@ -263,7 +262,7 @@ def researcher_app(email):
         project_name = st.session_state["selected_project_name"]
 
         # Fetch users in the project
-        project_users = [user for user in dbs.get_users() if user['ProjectID'] == project_id]
+        project_users = dbs.get_users_by_project(project_id)
 
         # Display users in the project
         st.subheader(f"Users in Project: {project_name}")
