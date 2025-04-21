@@ -1,7 +1,6 @@
 import streamlit as st
 import bcrypt
-import pandas as pd
-import dbs2
+import dbs
 import qrcode
 from io import BytesIO
 from PIL import Image
@@ -16,8 +15,8 @@ def validate_email(email):
         return False, "Invalid email format."
 
     # Check if email already exists (case-insensitive)
-    users_df = dbs.get_users_df()
-    if email.lower() in [e.lower() for e in users_df['Email'].values]:
+    user = dbs.get_user_by_email(email)
+    if user:
         return False, "Email already registered."
 
     return True, ""
@@ -29,8 +28,8 @@ def validate_username(username):
         return False, "Username must be at least 3 characters."
 
     # Case-insensitive username check
-    users_df = dbs.get_users_df()
-    if username.lower() in [u.lower() for u in users_df['Username'].values]:
+    users = dbs.get_users()
+    if any(u['Username'].lower() == username.lower() for u in users):
         return False, "Username already taken."
 
     return True, ""
@@ -57,58 +56,25 @@ def validate_password(password, confirm_password):
     return True, ""
 
 
-def register_user(username, email, password, role, project_id="default"):
+def register_user(username, email, password, role, project_id=None):
     """Register a new user and add them to the database."""
-    # Get current dataframes
-    users_df = dbs.get_users_df()
-
-    # Generate a new user ID
-    if len(users_df) == 0:
-        new_user_id = "user1"
-    else:
-        # Extract the numeric part of the last user ID and increment it
-        last_id = users_df['UserID'].iloc[-1]
-        numeric_part = int(''.join(filter(str.isdigit, last_id)))
-        new_user_id = f"user{numeric_part + 1}"
-
     # Hash the password
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-    # Create new user record as a dictionary
-    new_user = {
-        'UserID': new_user_id,
-        'Email': email,
-        'Username': username,
-        'HashedPassword': hashed_password,
-        'Role': role,  # Use the role parameter
-        'Active?': True
-    }
-
-    # Add user to database
-    updated_users_df = dbs.add_user(new_user)
+    # Add user to the database
+    dbs.add_user(email, username, hashed_password, role, active=True)
 
     # Only create a welcome chat for regular users
     if role == "User":
         # Create an initial chat for the user
-        new_chat = {
-            'UserID': new_user_id,
-            'ChatID': f"chat{len(dbs.get_chats_df()) + 1}",
-            'ChatName': f"Welcome Chat for {username}",
-            'ChatDescription': "Your first chat in VoxPopuli",
-            'Total Messages': 0,
-            'Donated?': False,
-            'Start Date': pd.Timestamp.now().strftime('%Y-%m-%d')
-        }
+        dbs.add_chat(
+            user_id=dbs.get_user_by_email(email)['UserID'],
+            chat_name=f"Welcome Chat for {username}",
+            chat_description="Your first chat in VoxPopuli",
+            project_id=project_id
+        )
 
-        # Add chat to database
-        dbs.add_chat(new_chat)
-
-    # Debug print to verify user was added correctly
-    print(f"Added new user: {new_user_id}, {email}, Role: {role}")
-    print(f"User dataframe now has {len(updated_users_df)} rows")
-    print(f"All emails in dataframe: {updated_users_df['Email'].tolist()}")
-
-    return new_user_id, email, role
+    return email, role
 
 
 def generate_qr_code(user_data):
@@ -152,50 +118,17 @@ def register_page():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
 
-    # For debugging - show current users in database
-    if st.session_state.get("debug_mode", False):
-        with st.expander("Debug: Current Users"):
-            st.dataframe(dbs.get_users_df())
-
     # If already registered successfully, just show the success message and button
     if st.session_state.registration_success:
-        if st.session_state.registered_role == "User":
-            if st.session_state.qr_generated and st.session_state.user_data:
-                st.success("Registration successful! Your QR code has been generated.")
-
-                # Display QR code
-                st.markdown("### Your Registration QR Code")
-                st.markdown("Scan this QR code to complete your registration process.")
-
-                qr_buffer = generate_qr_code(st.session_state.user_data)
-                st.image(qr_buffer, caption="Your Registration QR Code", width=300)
-
-                st.markdown("**Important**: Save this QR code. You'll need it to access your account.")
-
-                st.info(
-                    "In a production environment, this QR code would contain cryptographic information to securely validate your registration.")
-            else:
-                st.error("There was an issue generating your QR code. Please try again.")
-
-            if st.button("Back to Login Page", key="back_to_login"):
-                # Reset the registration mode and success flag
-                st.session_state.registration_mode = False
-                st.session_state.registration_success = False
-                st.session_state.registered_role = None
-                st.session_state.registration_type = None
-                st.session_state.qr_generated = False
-                st.session_state.user_data = None
-                st.rerun()
-        else:
-            # Standard success message for researchers
-            st.success(f"Registration successful! You can now log in as a researcher with your email and password.")
-            if st.button("Back to Login Page", key="back_to_login"):
-                # Reset the registration mode and success flag
-                st.session_state.registration_mode = False
-                st.session_state.registration_success = False
-                st.session_state.registered_role = None
-                st.session_state.registration_type = None
-                st.rerun()
+        st.success("Registration successful! You can now log in.")
+        if st.button("Back to Login Page", key="back_to_login"):
+            st.session_state.registration_mode = False
+            st.session_state.registration_success = False
+            st.session_state.registered_role = None
+            st.session_state.registration_type = None
+            st.session_state.qr_generated = False
+            st.session_state.user_data = None
+            st.rerun()
         return
 
     # If registration type not selected yet, show the selection buttons
@@ -278,10 +211,10 @@ def register_page():
                                 st.error(password_error)
                             else:
                                 # All validations passed, register the user
-                                user_id, user_email, user_role = register_user(username, email, password, "User")
+                                user_email, user_role = register_user(username, email, password, "User", project_name)
 
                                 # Create user data for QR code - in production this would be encrypted
-                                user_data = f"UserID:{user_id}|Username:{username}|Email:{email}|Project:{project_name}"
+                                user_data = f"Username:{username}|Email:{email}|Project:{project_name}"
                                 st.session_state.user_data = user_data
 
                                 # Mark registration as successful and QR code as generated
@@ -290,7 +223,7 @@ def register_page():
                                 st.session_state.qr_generated = True
                                 st.rerun()
     else:
-        # Researcher Registration Form (original flow)
+        # Researcher Registration Form
         with st.form("researcher_registration_form"):
             st.subheader("Register as Researcher")
 
@@ -302,12 +235,6 @@ def register_page():
 
             # Researcher-specific fields
             project_id = st.text_input("Project ID (Optional)", key="reg_project")
-            researcher_institution = st.text_input("Institution", key="reg_institution")
-            researcher_field = st.selectbox(
-                "Research Field",
-                ["Psychology", "Linguistics", "Computer Science", "Social Science", "Other"],
-                key="reg_field"
-            )
 
             # Terms and conditions checkbox
             terms_agree = st.checkbox("I agree to the Terms and Conditions", key="reg_terms")
@@ -320,8 +247,6 @@ def register_page():
                     st.error("You must agree to the Terms and Conditions.")
                 elif not username or not email or not password or not confirm_password:
                     st.error("Please fill in all required fields.")
-                elif not researcher_institution:
-                    st.error("Please fill in your institution.")
                 else:
                     # Validate inputs
                     is_valid_email, email_error = validate_email(email)
@@ -337,14 +262,7 @@ def register_page():
                                 st.error(password_error)
                             else:
                                 # All validations passed, register the user
-                                user_id, user_email, user_role = register_user(username, email, password, "Researcher",
-                                                                               project_id)
-
-                                # Store additional researcher info
-                                st.session_state["researcher_info"] = {
-                                    "institution": researcher_institution,
-                                    "field": researcher_field
-                                }
+                                user_email, user_role = register_user(username, email, password, "Researcher", project_id)
 
                                 # Mark registration as successful
                                 st.session_state.registration_success = True

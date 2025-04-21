@@ -1,43 +1,20 @@
 import streamlit as st
-import qrcode
-from io import BytesIO
-from PIL import Image
+import dbs
+import bcrypt
 import pandas as pd
-import dbs2
+import matplotlib.pyplot as plt
 from datetime import datetime
 
 
-def generate_join_qr_code(user_data):
-    """Generate a QR code for joining a project."""
-    # Create QR code
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(user_data)
-    qr.make(fit=True)
-
-    # Create an image from the QR Code
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    # Save to BytesIO object
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    buffered.seek(0)
-
-    return buffered
-
-
 def user_app(email):
-    # Safer lookup with error handling
-    user_matches = dbs.get_user_by_email(email)
+    """Main function for the User Dashboard."""
+    # Find user by email
+    user_data = dbs.get_user_by_email(email)
 
-    if user_matches.empty:
+    if not user_data:
         st.error(f"User with email {email} not found in the database.")
         st.write("Please log out and log in again.")
-        if st.button("Logout", key="user_not_found_logout"):
+        if st.button("Logout", key="user_logout"):
             st.session_state["logged_in"] = False
             st.session_state["role"] = None
             st.session_state["email"] = None
@@ -45,227 +22,131 @@ def user_app(email):
         return
 
     # Get user information
-    username = user_matches['Username'].values[0]
-    userid = user_matches['UserID'].values[0]
+    username = user_data['Username']
+    userid = user_data['UserID']
 
-    # Initialize join project state
-    if "join_project_mode" not in st.session_state:
-        st.session_state["join_project_mode"] = False
-
-    # Handle join project mode
-    if st.session_state["join_project_mode"]:
-        st.title("Join New Project")
-        st.markdown("Enter the name of the project you want to join")
-
-        project_name = st.text_input("Project Name", key="join_project_name")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("Generate QR Code", key="generate_join_qr"):
-                if not project_name:
-                    st.error("Please enter a project name")
-                else:
-                    # Create user data for QR code - in production this would be encrypted
-                    user_data = f"UserID:{userid}|Username:{username}|Email:{email}|Project:{project_name}"
-
-                    # Generate QR code
-                    qr_buffer = generate_join_qr_code(user_data)
-
-                    # Display QR code
-                    st.success(f"QR code generated for joining {project_name}")
-                    st.image(qr_buffer, caption=f"Join {project_name} QR Code", width=300)
-
-                    st.info(
-                        "In a production environment, this QR code would contain cryptographic information to securely validate your request.")
-
-        with col2:
-            if st.button("Back to Dashboard", key="back_to_dashboard"):
-                st.session_state["join_project_mode"] = False
-                st.rerun()
-
-        return
-
-    # Regular user app view
-    # Find user's chats
-    user_chats = dbs.get_user_chats(userid)
-
-    if len(user_chats) == 0:
-        # No chats found, create a default one
-        st.warning("No chats found for this user. Creating a default chat.")
-
-        # Get available projects
-        projects_df = dbs.get_projects_df()
-        default_project = projects_df['ProjectID'].iloc[0] if not projects_df.empty else "default"
-
-        new_chat = {
-            'UserID': userid,
-            'ChatID': f"chat{len(dbs.get_chats_df()) + 1}",
-            'ChatName': f"Welcome Chat for {username}",
-            'ChatDescription': "Your first chat in VoxPopuli",
-            'Total Messages': 0,
-            'Donated?': False,
-            'Start Date': datetime.now().strftime('%Y-%m-%d'),
-            'Last Updated': datetime.now().strftime('%Y-%m-%d'),
-            'Project ID': default_project
-        }
-        # Add chat to database
-        dbs.add_chat(new_chat)
-
-        # Update user_chats
-        user_chats = dbs.get_user_chats(userid)
-
-    # Convert data types
-    user_chats['Donated?'] = user_chats['Donated?'].astype(bool)
-    user_chats['Start Date'] = pd.to_datetime(user_chats['Start Date'], errors='coerce').dt.date
-    if 'Last Updated' in user_chats.columns:
-        user_chats['Last Updated'] = pd.to_datetime(user_chats['Last Updated'], errors='coerce').dt.date
-
-    # Page title and welcome
+    # Page title
     st.title("User Dashboard")
     st.success(f"Welcome, {username}!")
 
-    # Sidebar with user info and join projects button
-    st.sidebar.markdown(f"### User Profile")
-    st.sidebar.markdown(f"**Username:** {username}")
-    st.sidebar.markdown(f"**Email:** {email}")
-    st.sidebar.markdown(f"**ID:** {userid}")
-
-    if st.sidebar.button("Join Other Projects", key="join_projects_btn"):
-        st.session_state["join_project_mode"] = True
-        st.rerun()
-
-    # Main view
-    # Get all projects
-    projects_df = dbs.get_projects_df()
-
-    # Get list of projects this user is involved in
-    user_project_ids = []
-    if 'Project ID' in user_chats.columns:
-        user_project_ids = user_chats['Project ID'].unique().tolist()
-
-    # Filter projects to only show those the user is involved in
-    if user_project_ids:
-        user_projects_df = projects_df[projects_df['ProjectID'].isin(user_project_ids)]
-    else:
-        # If user has no projects yet, show a message
-        st.warning("You are not currently participating in any projects.")
-        return
-
-    if user_projects_df.empty:
-        st.warning("You are not currently participating in any projects.")
-        return
-
-    # Create mapping of project names to IDs
-    project_options = user_projects_df['ProjectName'].tolist()
-    projects_dict = dict(zip(user_projects_df['ProjectName'], user_projects_df['ProjectID']))
-
-    # Show number of projects
-    st.info(f"You are participating in {len(user_projects_df)} project(s).")
-
-    # Project selection
-    selected_project_name = st.selectbox(
-        "Select a Project",
-        project_options,
-        key="project_select",
-        format_func=lambda x: f"{x} ({projects_dict[x]})"
+    # Sidebar with options
+    menu = st.sidebar.selectbox(
+        "Dashboard Menu",
+        ["My Chats", "Chat Analytics", "Profile Settings"]
     )
 
-    if selected_project_name:
-        project_id = projects_dict[selected_project_name]
-        project_details = projects_df[projects_df['ProjectID'] == project_id]
+    # My Chats Screen
+    if menu == "My Chats":
+        st.header("My Chats")
+        st.markdown("Here are your active chats:")
 
-        # Project details
-        st.subheader(f"Project: {selected_project_name}")
+        # Fetch user's chats from the database
+        user_chats = dbs.get_user_chats(userid)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(f"**Description:** {project_details['Description'].values[0]}")
-            st.markdown(f"**Status:** {project_details['Status'].values[0]}")
-
-        with col2:
-            # Get researcher name
-            lead_researcher_id = project_details['LeadResearcher'].values[0]
-            lead_researcher = dbs.get_users_df()[dbs.get_users_df()['UserID'] == lead_researcher_id]
-            if not lead_researcher.empty:
-                st.markdown(f"**Lead Researcher:** {lead_researcher['Username'].values[0]}")
-
-            st.markdown(f"**Start Date:** {project_details['StartDate'].values[0]}")
-
-        # Filter user chats to just this project
-        if 'Project ID' in user_chats.columns:
-            project_user_chats = user_chats[user_chats['Project ID'] == project_id].copy()
+        if not user_chats:
+            st.info("You have no active chats. Start a new one!")
         else:
-            project_user_chats = user_chats.copy()
-            st.warning("Project filtering unavailable - showing all chats")
+            # Display chats in a table
+            chats_df = pd.DataFrame(user_chats)
+            st.dataframe(chats_df[['ChatName', 'ChatDescription', 'TotalMessages', 'LastUpdated']])
 
-        # Show number of chats in this project
-        st.info(f"You have {len(project_user_chats)} chat(s) in this project.")
-
-        # Chat section
-        st.markdown("---")
-        st.subheader("Your Chats")
-
-        # Filters
-        st.markdown("### 🔍 Filter Your Chats")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            search_text = st.text_input("Search by chat name", key="search_chat")
-
-        with col2:
-            donation_filter = st.selectbox(
-                "Filter by donation status",
-                ["All", "Donated", "Not Donated"],
-                key="donation_filter"
+            # Option to open a specific chat
+            selected_chat = st.selectbox(
+                "Select a chat to view details:",
+                options=[chat['ChatName'] for chat in user_chats],
+                key="select_chat"
             )
 
-        filtered_df = project_user_chats.copy()
-        if search_text:
-            filtered_df = filtered_df[filtered_df['ChatName'].str.contains(search_text, case=False)]
+            if selected_chat:
+                chat_details = next(chat for chat in user_chats if chat['ChatName'] == selected_chat)
+                st.subheader(f"Chat: {chat_details['ChatName']}")
+                st.markdown(f"**Description:** {chat_details['ChatDescription']}")
+                st.markdown(f"**Total Messages:** {chat_details['TotalMessages']}")
+                st.markdown(f"**Last Updated:** {chat_details['LastUpdated']}")
 
-        if donation_filter == "Donated":
-            filtered_df = filtered_df[filtered_df['Donated?'] == True]
-        elif donation_filter == "Not Donated":
-            filtered_df = filtered_df[filtered_df['Donated?'] == False]
+                # Fetch messages for the selected chat
+                chat_messages = dbs.get_chat_messages(chat_details['ChatID'])
 
-        # Display and edit table
-        editable_cols = ['Donated?']
-        if 'Last Updated' in filtered_df.columns:
-            displayed_cols = ['ChatID', 'ChatName', 'Total Messages', 'Start Date', 'Last Updated'] + editable_cols
+                if not chat_messages:
+                    st.info("No messages in this chat yet.")
+                else:
+                    messages_df = pd.DataFrame(chat_messages)
+                    st.dataframe(messages_df[['UserID', 'Message', 'Timestamp', 'Sentiment']])
+
+    # Chat Analytics Screen
+    elif menu == "Chat Analytics":
+        st.header("Chat Analytics")
+        st.markdown("Analyze your chat activity and sentiment trends.")
+
+        # Fetch user's chats
+        user_chats = dbs.get_user_chats(userid)
+
+        if not user_chats:
+            st.info("You have no chats to analyze.")
         else:
-            displayed_cols = ['ChatID', 'ChatName', 'Total Messages', 'Start Date'] + editable_cols
+            # Collect all messages from user's chats
+            chat_ids = [chat['ChatID'] for chat in user_chats]
+            user_messages = dbs.get_messages_by_chat_ids(chat_ids)
 
-        # Filter columns to only include those that exist
-        displayed_cols = [col for col in displayed_cols if col in filtered_df.columns]
+            if not user_messages:
+                st.info("No messages to analyze.")
+            else:
+                # Convert messages to a DataFrame
+                messages_df = pd.DataFrame(user_messages)
 
-        if len(filtered_df) > 0:
-            edited_df = st.data_editor(
-                filtered_df[displayed_cols],
-                use_container_width=True,
-                num_rows="fixed",
-                column_config={
-                    "Start Date": st.column_config.DateColumn("Start Date"),
-                    "Last Updated": st.column_config.DateColumn(
-                        "Last Updated") if 'Last Updated' in filtered_df.columns else None,
-                    "Donated?": st.column_config.CheckboxColumn("Donated?"),
-                    "Total Messages": st.column_config.NumberColumn("Messages"),
-                },
-                disabled=[col for col in displayed_cols if col != 'Donated?'],
-                hide_index=True,
-                key="chat_editor"
-            )
+                # Sentiment distribution
+                st.subheader("Sentiment Distribution")
+                sentiment_counts = messages_df['Sentiment'].value_counts()
+                fig, ax = plt.subplots()
+                sentiment_counts.plot(kind='bar', ax=ax, color=['#5cb85c', '#d9534f', '#5bc0de', '#f0ad4e'])
+                ax.set_title("Sentiment Distribution")
+                ax.set_ylabel("Number of Messages")
+                ax.set_xlabel("Sentiment")
+                st.pyplot(fig)
 
-            # Auto-save logic: update only changed rows
-            chats_df = dbs.get_chats_df()
-            for _, row in edited_df.iterrows():
-                chat_id = row["ChatID"]
-                original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
+                # Chat activity over time
+                st.subheader("Chat Activity Over Time")
+                messages_df['Timestamp'] = pd.to_datetime(messages_df['Timestamp'])
+                daily_activity = messages_df.groupby(messages_df['Timestamp'].dt.date).size()
+                fig, ax = plt.subplots()
+                daily_activity.plot(kind='line', ax=ax, marker='o', linestyle='-', color='#337ab7')
+                ax.set_title("Chat Activity Over Time")
+                ax.set_ylabel("Number of Messages")
+                ax.set_xlabel("Date")
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                st.pyplot(fig)
 
-                if row["Donated?"] != original_row["Donated?"]:
-                    # Update the chat in session state
-                    chats_df.loc[chats_df["ChatID"] == chat_id, "Donated?"] = row["Donated?"]
-                    dbs.update_chats_df(chats_df)
-                    st.toast(f"Saved changes for chat: {row['ChatName']}", icon="✅")
-        else:
-            st.info("No chats match your filter criteria.")
+    # Profile Settings Screen
+    elif menu == "Profile Settings":
+        st.header("Profile Settings")
+        st.markdown("Update your profile information or change your password.")
+
+        # Display current profile information
+        st.subheader("Profile Information")
+        st.markdown(f"**Username:** {username}")
+        st.markdown(f"**Email:** {user_data['Email']}")
+        st.markdown(f"**Role:** {user_data['Role']}")
+
+        # Option to change password
+        st.subheader("Change Password")
+        current_password = st.text_input("Current Password", type="password", key="current_password")
+        new_password = st.text_input("New Password", type="password", key="new_password")
+        confirm_new_password = st.text_input("Confirm New Password", type="password", key="confirm_new_password")
+
+        if st.button("Update Password"):
+            if not current_password or not new_password or not confirm_new_password:
+                st.error("Please fill in all fields.")
+            elif new_password != confirm_new_password:
+                st.error("New passwords do not match.")
+            else:
+                # Verify current password
+                if bcrypt.checkpw(current_password.encode('utf-8'), user_data['HashedPassword'].encode('utf-8')):
+                    # Hash the new password
+                    hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+                    # Update the password in the database
+                    dbs.update_user_password(userid, hashed_new_password)
+                    st.success("Password updated successfully!")
+                else:
+                    st.error("Current password is incorrect.")
