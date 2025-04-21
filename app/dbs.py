@@ -99,6 +99,7 @@ def add_user(email, username, hashed_password, role, active=True):
             CreatedAt=datetime.now().date()
         )
         connection.execute(stmt)
+        connection.commit()
 
 
 # Function to fetch all users
@@ -122,6 +123,7 @@ def add_chat(user_id, chat_name, chat_description, project_id=None):
             ProjectID=project_id
         )
         connection.execute(stmt)
+        connection.commit()
 
 # Function to fetch all chats for a user
 def get_user_chats(user_id):
@@ -137,6 +139,7 @@ def update_chat(chat_id, donated, start_date):
             StartDate=start_date
         )
         connection.execute(stmt)
+        connection.commit()
 # # Function to add a message
 # def add_message(chat_id, user_id, message, sentiment="Neutral"):
 #     with pool.connect() as connection:
