@@ -80,19 +80,20 @@ def user_app(email):
         hide_index=True
     )
 
-    # Auto-save logic: update only changed rows
-    for _, row in edited_df.iterrows():
-        chat_id = row["ChatID"]
-        original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
+    # Save button logic
+    if st.button("Save Changes"):
+        for _, row in edited_df.iterrows():
+            chat_id = row["ChatID"]
+            original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
 
-        if (
-            row["Donated"] != original_row["Donated"]
-            or row["StartDate"] != pd.to_datetime(original_row["StartDate"]).date()
-        ):
-            # Update the database with the changes
-            dbs.update_chat(
-                chat_id=chat_id,
-                donated=row["Donated"],
-                start_date=row["StartDate"]
-            )
-            st.toast(f"Saved changes for chat: {row['ChatName']}", icon="✅")
+            if (
+                row["Donated"] != original_row["Donated"]
+                or row["StartDate"] != pd.to_datetime(original_row["StartDate"]).date()
+            ):
+                # Update the database with the changes
+                dbs.update_chat(
+                    chat_id=chat_id,
+                    donated=bool(row["Donated"]),  # Ensure boolean conversion
+                    start_date=row["StartDate"]
+                )
+                st.toast(f"Saved changes for chat: {row['ChatName']}", icon="✅")

@@ -131,13 +131,12 @@ def researcher_app(email):
         st.warning("You are not currently assigned as a lead researcher for any projects.")
         st.info("Please contact the administrator to be assigned to a project.")
         return
-
+    st.sidebar.success(f"Welcome, {username}!")
     # Sidebar with options
     menu = st.sidebar.selectbox(
         "Dashboard Menu",
         ["Project Selection", "Project Overview", "Chat Analysis", "User Management", "Data Export"]
     )
-    st.sidebar.success(f"Welcome, {username}!")
     # Get researcher's projects for selection
     project_options = [p['ProjectName'] for p in researcher_projects]
     projects_dict = {p['ProjectName']: p['ProjectID'] for p in researcher_projects}
@@ -302,8 +301,7 @@ def researcher_app(email):
                             username=username,
                             hashed_password=hashed_password,
                             role=role,
-                            active=active,
-                            project_id=project_id
+                            active=active
                         )
                         st.success(f"User {username} registered successfully!")
                         st.experimental_rerun()
