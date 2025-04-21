@@ -144,3 +144,10 @@ def get_chat_messages(chat_id):
         stmt = select(messages_table).where(messages_table.c.ChatID == chat_id)
         result = connection.execute(stmt)
         return [dict(row) for row in result]
+
+# Function to get a user by email (case-insensitive)
+def get_user_by_email(email):
+    with pool.connect() as connection:
+        stmt = select(users_table).where(users_table.c.Email.ilike(email))
+        result = connection.execute(stmt).fetchone()
+        return dict(result) if result else None
