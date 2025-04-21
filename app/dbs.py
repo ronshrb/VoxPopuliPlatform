@@ -102,7 +102,7 @@ def get_users():
     with pool.connect() as connection:
         stmt = select(users_table)
         result = connection.execute(stmt)
-        return [dict(row) for row in result]
+        return [dict(row._mapping) for row in result]
 
 # Function to add a chat
 def add_chat(user_id, chat_name, chat_description, project_id=None):
@@ -148,6 +148,6 @@ def get_chat_messages(chat_id):
 # Function to get a user by email (case-insensitive)
 def get_user_by_email(email):
     with pool.connect() as connection:
-        stmt = select(users).where(users_table.c.Email==email)
+        stmt = select(users_table).where(users_table.c.Email == email)
         result = connection.execute(stmt).fetchone()
-        return dict(result) if result else None
+        return dict(result._mapping) if result else None
