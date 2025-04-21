@@ -152,6 +152,6 @@ def get_user_chats(user_id):
 # Function to get a user by email (case-insensitive)
 def get_user_by_email(email):
     with pool.connect() as connection:
-        stmt = select(users_table).where(users_table.c.Email.ilike(email))  # case-insensitive match
+        stmt = select(users_table).where(users_table.c.Email==email)  # case-insensitive match
         result = connection.execute(stmt).fetchone()
         return dict(result._mapping) if result else None

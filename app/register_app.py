@@ -56,13 +56,13 @@ def validate_password(password, confirm_password):
     return True, ""
 
 
-def register_user(username, email, password, role, project_id=None):
+def register_user(username, email, password, role, project_id):
     """Register a new user and add them to the database."""
     # Hash the password
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     # Add user to the database
-    dbs.add_user(email, username, hashed_password, role, active=True)
+    dbs.add_user(email, username, hashed_password, role="User", active=True, project_id=project_id)
 
     # Only create a welcome chat for regular users
     if role == "User":

@@ -58,7 +58,7 @@ if "logged_in" not in st.session_state:
     st.session_state["registration_mode"] = False
     st.session_state["registration_success"] = False
     st.session_state["registered_role"] = None
-    st.session_state["debug_mode"] = False
+    # st.session_state["debug_mode"] = False
 
 
 # # Debug function to display dataframe
@@ -185,10 +185,10 @@ elif not st.session_state["logged_in"]:
                                         st.write("Type of stored hash:", type(stored_hashed_password))
                             except Exception as e:
                                 st.error(f"Login error: {str(e)}")
-                                if st.session_state["debug_mode"]:
-                                    st.write("Exception details:", str(e))
-                                    import traceback
-                                    st.write("Traceback:", traceback.format_exc())
+                                # if st.session_state["debug_mode"]:
+                                #     st.write("Exception details:", str(e))
+                                #     import traceback
+                                #     st.write("Traceback:", traceback.format_exc())
                     else:
                         st.error("User not found. Please check your email or register.")
 
