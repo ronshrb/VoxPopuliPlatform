@@ -304,6 +304,6 @@ def researcher_app(email):
                             active=active
                         )
                         st.success(f"User {username} registered successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Error registering user: {str(e)}")
