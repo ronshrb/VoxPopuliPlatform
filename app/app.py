@@ -126,7 +126,6 @@ elif not st.session_state["logged_in"]:
 
         # Role selection and login
         role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
-        prj_code = st.text_input("ProjectID", key="project_input", value="")
 
         # Set default email and password to blank when first entering the site
         email = st.text_input("Email", key="email_input", value="")
@@ -144,8 +143,8 @@ elif not st.session_state["logged_in"]:
 
         with col1:
             if st.button("Login", key="login_button"):
-                if not email or not password or not prj_code:
-                    st.error("Please enter email, password and project ID.")
+                if not email or not password:
+                    st.error("Please enter both email password.")
                 else:
                     # Find user by email - using case-insensitive comparison
                     user_data = dbs.get_user_by_email(email)
@@ -153,14 +152,11 @@ elif not st.session_state["logged_in"]:
                     if user_data:
                         # Get the stored hash from the database
                         stored_hashed_password = user_data['HashedPassword']
-                        prj_code = user_data['ProjectID']
                         user_role = user_data['Role']
 
                         # Check if role matches
                         if role != user_role:
                             st.error(f"This email is registered as a {user_role}, not a {role}.")
-                        elif prj_code != prj_code:
-                            st.error(f"This email is not registered under project ID {prj_code}.")
                         else:
                             try:
                                 # # Debug information about the password check
