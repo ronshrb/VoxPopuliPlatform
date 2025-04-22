@@ -113,176 +113,76 @@ if not st.session_state["logged_in"]:
     st.markdown("<p class='sub-header'>Collaborative Research Platform for Voice and Opinion Analysis</p>",
                 unsafe_allow_html=True)
 
-    # Debug mode toggle in sidebar
-    # st.session_state["debug_mode"] = st.sidebar.checkbox("Debug Mode", st.session_state.get("debug_mode", False))
+    # Create two columns for layout
+    col1, col2 = st.columns([1, 1])  # Adjust column widths as needed
 
-    # Debug information
-    # if st.session_state["debug_mode"]:
-    #     display_debug_info()
-
-    # Login container
-    with st.container():
+    # Column 1: Login Form
+    with col1:
         st.markdown("<div class='login-container'>", unsafe_allow_html=True)
 
-        # # Role selection and login
-        # role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
+        # Role selection and login
+        role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
 
-        # # Set default email and password to blank when first entering the site
-        # email = st.text_input("Email", key="email_input", value="")
-        # password = st.text_input("Password", type="password", key="password_input", value="")
+        # Set default email and password to blank when first entering the site
+        email = st.text_input("Email", key="email_input", value="")
+        password = st.text_input("Password", type="password", key="password_input", value="")
 
-        # # Project code
-        # prj_code = "user1@example.com" if role == "User" else "user41@example.com"
+        # Login button
+        if st.button("Login", key="login_button"):
+            if not email or not password:
+                st.error("Please enter both email and password.")
+            else:
+                # Find user by email - using case-insensitive comparison
+                user_data = dbs.get_user_by_email(email)
 
-        # # Set default email based on selected role
-        # default_email = "user1@example.com" if role == "User" else "user41@example.com"
-        # email = st.text_input("Email", key="email_input", value=default_email)
-        # password = st.text_input("Password", type="password", key="password_input", value="password123")
+                if user_data:
+                    # Get the stored hash from the database
+                    stored_hashed_password = user_data['HashedPassword']
+                    user_role = user_data['Role']
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # Role selection and login
-            role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
-
-            # Set default email and password to blank when first entering the site
-            email = st.text_input("Email", key="email_input", value="")
-            password = st.text_input("Password", type="password", key="password_input", value="")
-            if st.button("Login", key="login_button"):
-                if not email or not password:
-                    st.error("Please enter both email password.")
-                else:
-                    # Find user by email - using case-insensitive comparison
-                    user_data = dbs.get_user_by_email(email)
-
-                    if user_data:
-                        # Get the stored hash from the database
-                        stored_hashed_password = user_data['HashedPassword']
-                        user_role = user_data['Role']
-
-                        # Check if role matches
-                        if role != user_role:
-                            st.error(f"This email is registered as a {user_role}, not a {role}.")
-                        else:
-                            try:
-                                # # Debug information about the password check
-                                # if st.session_state["debug_mode"]:
-                                #     # Show detailed debug info about the password check
-                                #     debug_info = dbs.debug_password(email, password)
-                                #     st.write("Password Debug Info:", debug_info)
-
-                                # Check if the provided password matches the hashed password
-                                if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
-                                    # Login successful for both user and researcher roles
-                                    st.session_state["logged_in"] = True
-                                    st.session_state["role"] = user_role
-                                    st.session_state["email"] = user_data['Email']
-                                    st.success("Login successful!")
-                                    st.rerun()
-                                else:
-                                    st.error("Invalid password.")
-                                    # if st.session_state["debug_mode"]:
-                                    #     st.write("Password check failed. Expected:", stored_hashed_password)
-                                    #     st.write("Input password:", password)
-                                    #     st.write("Type of stored hash:", type(stored_hashed_password))
-                            except Exception as e:
-                                st.error(f"Login error: {str(e)}")
-                                # if st.session_state["debug_mode"]:
-                                #     st.write("Exception details:", str(e))
-                                #     import traceback
-                                #     st.write("Traceback:", traceback.format_exc())
+                    # Check if role matches
+                    if role != user_role:
+                        st.error(f"This email is registered as a {user_role}, not a {role}.")
                     else:
-                        st.error("User not found. Please check your email or register.")
-        with col2:
-            st.markdown("### About VoxPopuli")
-            st.markdown("""
-            VoxPopuli is a platform for collaborative research projects focusing on:
-            - Opinion analysis
-            - Voice and language processing
-            - Sentiment analysis
-            - User behavior studies
-
-            Join our community to contribute to important research initiatives.
-            """)
-            
-            st.markdown("### Features")
-            st.markdown("""
-            - Participate in research conversations
-            - Donate your chat data for research
-            - Track your contributions
-            - Connect with researchers
-            - Generate insights from collective opinions
-            """)
-
-        # with col2:
-        #     if st.button("Register New Account", key="register_button"):
-        #         st.session_state["registration_mode"] = True
-        #         st.rerun()
-
-        # # Sample credentials for easy testing
-        # with st.expander("Sample Credentials (for testing)"):
-        #     st.info("""
-        #     **User Credentials:**  
-        #     Email: user1@example.com  
-        #     Password: password123
-
-        #     **Researcher Credentials:**  
-        #     Email: user41@example.com (Lead for Linguistic Analysis)  
-        #     Email: user42@example.com (Lead for Psychological Study)
-        #     Email: user43@example.com (Lead for Sociological Research)
-        #     Email: user44@example.com (Lead for General Survey)
-        #     Password: password123 (for all accounts)
-        #     """)
+                        try:
+                            # Check if the provided password matches the hashed password
+                            if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                                # Login successful for both user and researcher roles
+                                st.session_state["logged_in"] = True
+                                st.session_state["role"] = user_role
+                                st.session_state["email"] = user_data['Email']
+                                st.success("Login successful!")
+                                st.rerun()
+                            else:
+                                st.error("Invalid password.")
+                        except Exception as e:
+                            st.error(f"Login error: {str(e)}")
+                else:
+                    st.error("User not found. Please check your email or register.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # # Direct login buttons for testing
-        # if st.session_state["debug_mode"]:
-        #     st.markdown("### Quick Login (Debug)")
+    # Column 2: Platform Information
+    with col2:
+        st.markdown("### About VoxPopuli")
+        st.markdown("""
+        VoxPopuli is a platform for collaborative research projects focusing on:
+        - Opinion analysis
+        - Voice and language processing
+        - Sentiment analysis
+        - User behavior studies
 
-        #     col1, col2 = st.columns(2)
+        Join our community to contribute to important research initiatives.
+        """)
 
-        #     with col1:
-        #         if st.button("Login as User"):
-        #             # Directly set session state for user login
-        #             st.session_state["logged_in"] = True
-        #             st.session_state["role"] = "User"
-        #             st.session_state["email"] = "user1@example.com"
-        #             st.rerun()
-
-        #     with col2:
-        #         if st.button("Login as Researcher"):
-        #             # Directly set session state for researcher login
-        #             st.session_state["logged_in"] = True
-        #             st.session_state["role"] = "Researcher"
-        #             st.session_state["email"] = "user41@example.com"
-        #             st.rerun()
-
-    # App information section
-    # st.markdown("---")
-    # col1, col2 = st.columns(2)
-
-    # with col1:
-    #     st.markdown("### About VoxPopuli")
-    #     st.markdown("""
-    #     VoxPopuli is a platform for collaborative research projects focusing on:
-    #     - Opinion analysis
-    #     - Voice and language processing
-    #     - Sentiment analysis
-    #     - User behavior studies
-
-    #     Join our community to contribute to important research initiatives.
-    #     """)
-
-    # with col2:
-    #     st.markdown("### Features")
-    #     st.markdown("""
-    #     - Participate in research conversations
-    #     - Donate your chat data for research
-    #     - Track your contributions
-    #     - Connect with researchers
-    #     - Generate insights from collective opinions
-    #     """)
+        st.markdown("### Features")
+        st.markdown("""
+        - Participate in research conversations
+        - Donate your chat data for research
+        - Track your contributions
+        - Connect with researchers
+        - Generate insights from collective opinions
+        """)
 
 else:
     # Redirect to the appropriate app based on role
@@ -296,11 +196,4 @@ else:
         st.session_state["logged_in"] = False
         st.session_state["role"] = None
         st.session_state["email"] = None
-        st.rerun()  # Refresh to show login screen
-
-    # # Debug mode toggle in sidebar
-    # if st.sidebar.checkbox("Debug Mode", st.session_state.get("debug_mode", False)):
-    #     st.session_state["debug_mode"] = True
-    #     display_debug_info()
-    # else:
-    #     st.session_state["debug_mode"] = False
+        st.rerun()
