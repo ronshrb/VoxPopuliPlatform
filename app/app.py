@@ -32,6 +32,12 @@ st.markdown("""
         text-align: center;
         margin-bottom: 2rem;
     }
+    .credits {
+        font-size: 1rem;
+        color: #718093;
+        text-align: center;
+        margin-top: -0.5rem; /* Reduce space above the credits */
+    }   
     .login-container {
         max-width: 600px;
         margin: 0 auto;
@@ -112,7 +118,7 @@ if not st.session_state["logged_in"]:
     st.markdown("<h1 class='main-header'>Welcome to VoxPopuli 🗣️</h1>", unsafe_allow_html=True)
     st.markdown("<p class='sub-header'>Collaborative Research Platform for Voice and Opinion Analysis</p>",
                 unsafe_allow_html=True)
-    st.markdown("<p class='sub-header'>By: Amit Cohen, Eren Fishbein, Roey Fabian, Ron Sharabi</p>",
+    st.markdown("<p class='credits'>By: Amit Cohen, Eren Fishbein, Roey Fabian, Ron Sharabi</p>",
             unsafe_allow_html=True)
 
     # Create two columns for layout
