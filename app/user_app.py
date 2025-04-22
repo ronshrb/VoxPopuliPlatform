@@ -37,6 +37,7 @@ def user_app(email):
     chats_df['StartDate'] = pd.to_datetime(chats_df['StartDate'], errors='coerce').dt.date
 
     # Fetch project details
+    project_names = chats_df['ProjectName'].unique()
     project_ids = chats_df['ProjectID'].unique()
     projects = dbs.get_projects()  # Fetch all projects from the database
     projects_df = pd.DataFrame(projects)
@@ -54,14 +55,14 @@ def user_app(email):
 
     # Sidebar: Filter by ProjectID
     st.sidebar.header("Filter by Project")
-    selected_project_id = st.sidebar.selectbox("Select a Project", project_ids, key="project_filter")
+    selected_projects = st.sidebar.selectbox("Select a Project", project_names, key="project_filter")
 
     # Display project information
-    selected_project = projects_df[projects_df['ProjectID'] == selected_project_id].iloc[0]
+    selected_project = projects_df[projects_df['ProjectName'] == selected_projects].iloc[0]
     st.sidebar.markdown("### Project Information")
-    st.sidebar.markdown(f"**Project Name:** {selected_project['ProjectName']}")
     st.sidebar.markdown(f"**Researcher:** {selected_project['LeadResearcher']}")
     st.sidebar.markdown(f"**Description:** {selected_project['Description']}")
+    selected_project_id = selected_project['ProjectID']
 
     # Filters
     st.header("My Chats")

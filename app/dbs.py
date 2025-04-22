@@ -136,7 +136,8 @@ def update_chat(chat_id, donated, start_date):
     with pool.connect() as connection:
         stmt = update(chats_table).where(chats_table.c.ChatID == chat_id).values(
             Donated=donated,
-            StartDate=start_date
+            StartDate=start_date,
+            LastUpdated=datetime.now().date()
         )
         connection.execute(stmt)
         connection.commit()
