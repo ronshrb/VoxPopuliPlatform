@@ -175,10 +175,10 @@ if not st.session_state["logged_in"]:
                                     st.rerun()
                                 else:
                                     st.error("Invalid password.")
-                                    if st.session_state["debug_mode"]:
-                                        st.write("Password check failed. Expected:", stored_hashed_password)
-                                        st.write("Input password:", password)
-                                        st.write("Type of stored hash:", type(stored_hashed_password))
+                                    # if st.session_state["debug_mode"]:
+                                    #     st.write("Password check failed. Expected:", stored_hashed_password)
+                                    #     st.write("Input password:", password)
+                                    #     st.write("Type of stored hash:", type(stored_hashed_password))
                             except Exception as e:
                                 st.error(f"Login error: {str(e)}")
                                 # if st.session_state["debug_mode"]:
