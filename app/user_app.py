@@ -76,7 +76,7 @@ def user_app(email):
             "StartDate": st.column_config.DateColumn("Start Date"),
             "Donated": st.column_config.CheckboxColumn("Donated"),
         },
-        disabled=["ChatID", "ChatName"],
+        disabled=['ProjectID', "ChatID", "ChatName"],
         hide_index=True
     )
 
