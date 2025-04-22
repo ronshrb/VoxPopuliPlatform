@@ -52,7 +52,7 @@ def user_app(email):
 
     # Sidebar: Filter by ProjectID
     st.sidebar.header("Filter by Project")
-    if projects_names:
+    if project_ids:
         selected_projects = st.sidebar.selectbox("Select a Project", projects_names, key="project_filter")
         selected_project = projects_df[projects_df['ProjectName'] == selected_projects].iloc[0]
         st.sidebar.markdown("### Project Information")

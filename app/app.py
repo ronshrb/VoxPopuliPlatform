@@ -114,11 +114,11 @@ if not st.session_state["logged_in"]:
                 unsafe_allow_html=True)
 
     # Create two columns for layout
-    col1, col2 = st.columns([1, 1])  # Adjust column widths as needed
+    col1, spacer, col2 = st.columns([0.8, 0.2, 1])
 
     # Column 1: Login Form
     with col1:
-        st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+        # st.markdown("<div class='login-container'>", unsafe_allow_html=True)
 
         # Role selection and login
         role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
@@ -160,7 +160,7 @@ if not st.session_state["logged_in"]:
                 else:
                     st.error("User not found. Please check your email or register.")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        # st.markdown("</div>", unsafe_allow_html=True)
 
     # Column 2: Platform Information
     with col2:
