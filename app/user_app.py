@@ -27,20 +27,17 @@ def user_app(email):
 
     # Fetch user's chats
     user_chats = dbs.get_user_chats(userid)
-    if not user_chats:
-        st.info("You have no active chats. Start a new one!")
-        return
 
-    # Convert chats to a DataFrame
-    chats_df = pd.DataFrame(user_chats)
+    # Convert chats to a DataFrame (empty DataFrame if no chats)
+    chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'ChatName', 'Donated', 'StartDate', 'ProjectID'])
     chats_df['Donated'] = chats_df['Donated'].astype(bool)
     chats_df['StartDate'] = pd.to_datetime(chats_df['StartDate'], errors='coerce').dt.date
 
     # Fetch project details
-    project_ids = chats_df['ProjectID'].unique()
+    project_ids = chats_df['ProjectID'].unique() if not chats_df.empty else []
     projects = dbs.get_projects()  # Fetch all projects from the database
     projects_df = pd.DataFrame(projects)
-    projects_names = projects_df['ProjectName'].unique()
+    projects_names = projects_df['ProjectName'].unique() if not projects_df.empty else []
 
     # Page title
     st.title("User Dashboard")
@@ -55,14 +52,16 @@ def user_app(email):
 
     # Sidebar: Filter by ProjectID
     st.sidebar.header("Filter by Project")
-    selected_projects = st.sidebar.selectbox("Select a Project", projects_names, key="project_filter")
-
-    # Display project information
-    selected_project = projects_df[projects_df['ProjectName'] == selected_projects].iloc[0]
-    st.sidebar.markdown("### Project Information")
-    st.sidebar.markdown(f"**Researcher:** {selected_project['LeadResearcher']}")
-    st.sidebar.markdown(f"**Description:** {selected_project['Description']}")
-    selected_project_id = selected_project['ProjectID']
+    if projects_names:
+        selected_projects = st.sidebar.selectbox("Select a Project", projects_names, key="project_filter")
+        selected_project = projects_df[projects_df['ProjectName'] == selected_projects].iloc[0]
+        st.sidebar.markdown("### Project Information")
+        st.sidebar.markdown(f"**Researcher:** {selected_project['LeadResearcher']}")
+        st.sidebar.markdown(f"**Description:** {selected_project['Description']}")
+        selected_project_id = selected_project['ProjectID']
+    else:
+        st.sidebar.markdown("No projects available.")
+        selected_project_id = None
 
     # Filters
     st.header("My Chats")
@@ -71,34 +70,37 @@ def user_app(email):
     donation_filter = st.selectbox("Filter by donation status", ["All", "Donated", "Not Donated"])
 
     # Apply filters
-    filtered_df = chats_df[chats_df['ProjectID'] == selected_project_id]  # Filter by selected ProjectID
-    if search_text:
-        filtered_df = filtered_df[filtered_df['ChatName'].str.contains(search_text, case=False)]
+    if selected_project_id:
+        filtered_df = chats_df[chats_df['ProjectID'] == selected_project_id]  # Filter by selected ProjectID
+        if search_text:
+            filtered_df = filtered_df[filtered_df['ChatName'].str.contains(search_text, case=False)]
 
-    if donation_filter == "Donated":
-        filtered_df = filtered_df[filtered_df['Donated'] == True]
-    elif donation_filter == "Not Donated":
-        filtered_df = filtered_df[filtered_df['Donated'] == False]
+        if donation_filter == "Donated":
+            filtered_df = filtered_df[filtered_df['Donated'] == True]
+        elif donation_filter == "Not Donated":
+            filtered_df = filtered_df[filtered_df['Donated'] == False]
+    else:
+        filtered_df = chats_df  # Empty DataFrame if no projects
 
     # Display and edit table
     editable_cols = ['Donated', 'StartDate']
-    displayed_cols = ['ChatID', 'ChatName'] + editable_cols
+    displayed_cols = ['ChatName'] + editable_cols
 
     st.markdown("### ☑️ Chats Picker")
     edited_df = st.data_editor(
-        filtered_df[displayed_cols],
+        filtered_df[displayed_cols] if not filtered_df.empty else pd.DataFrame(columns=displayed_cols),
         use_container_width=True,
         num_rows="fixed",
         column_config={
             "StartDate": st.column_config.DateColumn("Start Date"),
             "Donated": st.column_config.CheckboxColumn("Donated"),
         },
-        disabled=["ChatID", "ChatName"],
+        disabled=["ChatName"],
         hide_index=True
     )
 
     # Save button logic
-    if st.button("Save Changes"):
+    if not filtered_df.empty and st.button("Save Changes"):
         for _, row in edited_df.iterrows():
             chat_id = row["ChatID"]
             original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]

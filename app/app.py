@@ -122,14 +122,14 @@ if not st.session_state["logged_in"]:
 
     # Login container
     with st.container():
-        st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+        # st.markdown("<div class='login-container'>", unsafe_allow_html=True)
 
-        # Role selection and login
-        role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
+        # # Role selection and login
+        # role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
 
-        # Set default email and password to blank when first entering the site
-        email = st.text_input("Email", key="email_input", value="")
-        password = st.text_input("Password", type="password", key="password_input", value="")
+        # # Set default email and password to blank when first entering the site
+        # email = st.text_input("Email", key="email_input", value="")
+        # password = st.text_input("Password", type="password", key="password_input", value="")
 
         # # Project code
         # prj_code = "user1@example.com" if role == "User" else "user41@example.com"
@@ -143,6 +143,14 @@ if not st.session_state["logged_in"]:
 
         with col1:
             if st.button("Login", key="login_button"):
+                st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+
+                # Role selection and login
+                role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
+
+                # Set default email and password to blank when first entering the site
+                email = st.text_input("Email", key="email_input", value="")
+                password = st.text_input("Password", type="password", key="password_input", value="")
                 if not email or not password:
                     st.error("Please enter both email password.")
                 else:
@@ -187,7 +195,26 @@ if not st.session_state["logged_in"]:
                                 #     st.write("Traceback:", traceback.format_exc())
                     else:
                         st.error("User not found. Please check your email or register.")
+        with col2:
+            st.markdown("### About VoxPopuli")
+            st.markdown("""
+            VoxPopuli is a platform for collaborative research projects focusing on:
+            - Opinion analysis
+            - Voice and language processing
+            - Sentiment analysis
+            - User behavior studies
 
+            Join our community to contribute to important research initiatives.
+            """)
+
+            st.markdown("### Features")
+            st.markdown("""
+            - Participate in research conversations
+            - Donate your chat data for research
+            - Track your contributions
+            - Connect with researchers
+            - Generate insights from collective opinions
+            """)
         # with col2:
         #     if st.button("Register New Account", key="register_button"):
         #         st.session_state["registration_mode"] = True
@@ -230,33 +257,33 @@ if not st.session_state["logged_in"]:
         #             st.session_state["logged_in"] = True
         #             st.session_state["role"] = "Researcher"
         #             st.session_state["email"] = "user41@example.com"
-        #             st.rerun()
+    #     #             st.rerun()
 
-    # App information section
-    st.markdown("---")
-    col1, col2 = st.columns(2)
+    # # App information section
+    # st.markdown("---")
+    # col1, col2 = st.columns(2)
 
-    with col1:
-        st.markdown("### About VoxPopuli")
-        st.markdown("""
-        VoxPopuli is a platform for collaborative research projects focusing on:
-        - Opinion analysis
-        - Voice and language processing
-        - Sentiment analysis
-        - User behavior studies
+    # with col1:
+    #     st.markdown("### About VoxPopuli")
+    #     st.markdown("""
+    #     VoxPopuli is a platform for collaborative research projects focusing on:
+    #     - Opinion analysis
+    #     - Voice and language processing
+    #     - Sentiment analysis
+    #     - User behavior studies
 
-        Join our community to contribute to important research initiatives.
-        """)
+    #     Join our community to contribute to important research initiatives.
+    #     """)
 
-    with col2:
-        st.markdown("### Features")
-        st.markdown("""
-        - Participate in research conversations
-        - Donate your chat data for research
-        - Track your contributions
-        - Connect with researchers
-        - Generate insights from collective opinions
-        """)
+    # with col2:
+    #     st.markdown("### Features")
+    #     st.markdown("""
+    #     - Participate in research conversations
+    #     - Donate your chat data for research
+    #     - Track your contributions
+    #     - Connect with researchers
+    #     - Generate insights from collective opinions
+    #     """)
 
 else:
     # Redirect to the appropriate app based on role
