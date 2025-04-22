@@ -131,140 +131,69 @@ def researcher_app(email):
         st.warning("You are not currently assigned as a lead researcher for any projects.")
         st.info("Please contact the administrator to be assigned to a project.")
         return
+
     st.sidebar.success(f"Welcome, {username}!")
-    # Sidebar with options
-    menu = st.sidebar.selectbox(
-        "Dashboard Menu",
-        ["Project Selection", "Project Overview", "Chat Analysis", "User Management", "Data Export"]
-    )
-    # Get researcher's projects for selection
+
+    # Sidebar: Select Project
+    st.sidebar.header("Select a Project")
     project_options = [p['ProjectName'] for p in researcher_projects]
     projects_dict = {p['ProjectName']: p['ProjectID'] for p in researcher_projects}
 
-    # Project Selection Screen
-    if menu == "Project Selection":
-        st.header("Your Research Projects")
-        st.markdown("Select a project to manage:")
-
-        # Create project cards
-        cols = st.columns(min(3, len(project_options)))
-
-        for i, project_name in enumerate(project_options):
-            project_id = projects_dict[project_name]
-            project_details = next(p for p in researcher_projects if p['ProjectID'] == project_id)
-
-            with cols[i % len(cols)]:
-                st.markdown(f"""
-                <div style="
-                    padding: 20px;
-                    border-radius: 10px;
-                    border: 1px solid #ddd;
-                    margin-bottom: 20px;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                ">
-                    <h3>{project_name}</h3>
-                    <p><strong>Status:</strong> {project_details['Status']}</p>
-                    <p><strong>Started:</strong> {project_details['StartDate']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # Count project chats
-                project_chats = dbs.get_project_chats(project_id)
-
-                # Summary metrics
-                st.metric("Chats", len(project_chats))
-
-                # Button to open project
-                if st.button(f"Open {project_name}", key=f"open_{project_id}"):
-                    st.session_state["selected_project"] = project_id
-                    st.session_state["selected_project_name"] = project_name
-                    st.rerun()
-
-    # Store selected project in session state
-    if "selected_project" not in st.session_state and menu != "Project Selection":
+    # Default project selection
+    if "selected_project" not in st.session_state:
         st.session_state["selected_project"] = projects_dict[project_options[0]]
         st.session_state["selected_project_name"] = project_options[0]
 
-    # Project Overview Screen
-    elif menu == "Project Overview":
-        if "selected_project" not in st.session_state:
-            st.warning("Please select a project first")
-            st.rerun()
+    # Allow changing projects
+    selected_project_name = st.sidebar.selectbox(
+        "Project",
+        project_options,
+        index=project_options.index(st.session_state["selected_project_name"]),
+        key="sidebar_project_select"
+    )
 
-        project_id = st.session_state["selected_project"]
-        project_name = st.session_state["selected_project_name"]
+    # Update session state if the project changes
+    if selected_project_name != st.session_state["selected_project_name"]:
+        st.session_state["selected_project"] = projects_dict[selected_project_name]
+        st.session_state["selected_project_name"] = selected_project_name
+        st.rerun()
 
-        # Allow changing projects
-        new_project = st.selectbox(
-            "Select Project",
-            project_options,
-            index=project_options.index(project_name),
-            key="change_project"
-        )
+    # Display selected project information in the sidebar
+    selected_project_id = st.session_state["selected_project"]
+    selected_project = next(p for p in researcher_projects if p['ProjectID'] == selected_project_id)
 
-        if new_project != project_name:
-            st.session_state["selected_project"] = projects_dict[new_project]
-            st.session_state["selected_project_name"] = new_project
-            st.rerun()
+    st.sidebar.markdown("### Project Information")
+    st.sidebar.markdown(f"**Project Name:** {selected_project_name}")
+    st.sidebar.markdown(f"**Project ID:** {selected_project_id}")
+    st.sidebar.markdown(f"**Status:** {selected_project['Status']}")
+    st.sidebar.markdown(f"**Start Date:** {selected_project['StartDate']}")
 
-        selected_project = next(p for p in researcher_projects if p['ProjectID'] == project_id)
+    # Sidebar menu
+    menu = st.sidebar.selectbox(
+        "Dashboard Menu",
+        ["Project Analytics", "Chat Analysis", "User Management", "Project Creation", "Data Export"]
+    )
 
-        # Display project info
-        st.header(f"Dashboard for {project_name}")
+    # Project Analytics Page (Blank)
+    if menu == "Project Analytics":
+        st.header("Project Analytics")
+        st.markdown("This page is under construction.")
 
-        # Project details
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(f"**Project ID:** {project_id}")
-            st.markdown(f"**Status:** {selected_project['Status']}")
-            st.markdown(f"**Start Date:** {selected_project['StartDate']}")
+    # Chat Analysis Page
+    elif menu == "Chat Analysis":
+        st.header("Chat Analysis")
+        st.markdown("Analyze chats for the selected project.")
 
-        with col2:
-            st.markdown(f"**Lead Researcher:** {username} (You)")
-
-            # Count project chats
-            project_chats = dbs.get_project_chats(project_id)
-            st.markdown(f"**Number of Chats:** {len(project_chats)}")
-
-            # Count unique users
-            unique_users = len(set(chat['UserID'] for chat in project_chats))
-            st.markdown(f"**Number of Users:** {unique_users}")
-
-        st.markdown("---")
-
-        # Analytics section
-        st.subheader("Project Analytics")
-
-        # Display sentiment distribution
-        st.markdown("#### Sentiment Analysis")
-        sentiment_fig = plot_sentiment_distribution(project_id)
-        if sentiment_fig:
-            st.pyplot(sentiment_fig)
-        else:
-            st.info("No sentiment data available for this project.")
-
-        # Display chat activity
-        st.markdown("#### Chat Activity Over Time")
-        activity_fig = plot_chat_activity(project_id)
-        if activity_fig:
-            st.pyplot(activity_fig)
-        else:
-            st.info("No activity data available for this project.")
-
-    # Additional menu options (Chat Analysis, User Management, Data Export) can be updated similarly
+    # User Management Page
     elif menu == "User Management":
         st.header("User Management")
         st.markdown("Manage users in your project.")
 
-        # Get the selected project
-        project_id = st.session_state["selected_project"]
-        project_name = st.session_state["selected_project_name"]
-
         # Fetch users in the project
-        project_users = dbs.get_users_by_project(project_id)
+        project_users = dbs.get_users_by_project(selected_project_id)
 
         # Display users in the project
-        st.subheader(f"Users in Project: {project_name}")
+        st.subheader(f"Users in Project: {selected_project_name}")
         if not project_users:
             st.info("No users are currently registered in this project.")
         else:
@@ -307,3 +236,13 @@ def researcher_app(email):
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error registering user: {str(e)}")
+
+    # Project Creation Page (Blank)
+    elif menu == "Project Creation":
+        st.header("Project Creation")
+        st.markdown("This page is under construction.")
+
+    # Data Export Page
+    elif menu == "Data Export":
+        st.header("Data Export")
+        st.markdown("Export project data.")

@@ -38,7 +38,7 @@ def user_app(email):
 
     # Page title
     st.title("User Dashboard")
-    st.success(f"Welcome, {username}!")
+    st.sidebar.success(f"Welcome, {username}!")
 
     # Sidebar QR Code
     if st.sidebar.button("Generate QR Code"):
@@ -65,9 +65,9 @@ def user_app(email):
 
     # Display and edit table
     editable_cols = ['Donated', 'StartDate']
-    displayed_cols = ['ChatID', 'ChatName'] + editable_cols
+    displayed_cols = ['ProjectID', 'ChatID', 'ChatName'] + editable_cols
 
-    st.markdown("### 📝 Edit Your Chats")
+    st.markdown("### ☑️ Chats Picker")
     edited_df = st.data_editor(
         filtered_df[displayed_cols],
         use_container_width=True,

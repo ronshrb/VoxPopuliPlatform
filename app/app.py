@@ -114,7 +114,7 @@ if not st.session_state["logged_in"]:
                 unsafe_allow_html=True)
 
     # Debug mode toggle in sidebar
-    st.session_state["debug_mode"] = st.sidebar.checkbox("Debug Mode", st.session_state.get("debug_mode", False))
+    # st.session_state["debug_mode"] = st.sidebar.checkbox("Debug Mode", st.session_state.get("debug_mode", False))
 
     # Debug information
     # if st.session_state["debug_mode"]:
