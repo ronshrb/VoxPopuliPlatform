@@ -36,7 +36,7 @@ st.markdown("""
         font-size: 1rem;
         color: #718093;
         text-align: center;
-        margin-top: -0.5rem; /* Reduce space above the credits */
+        margin-bottom: 3rem;
     }   
     .login-container {
         max-width: 600px;
