@@ -36,6 +36,11 @@ def user_app(email):
     chats_df['Donated'] = chats_df['Donated'].astype(bool)
     chats_df['StartDate'] = pd.to_datetime(chats_df['StartDate'], errors='coerce').dt.date
 
+    # Fetch project details
+    project_ids = chats_df['ProjectID'].unique()
+    projects = dbs.get_projects()  # Fetch all projects from the database
+    projects_df = pd.DataFrame(projects)
+
     # Page title
     st.title("User Dashboard")
     st.sidebar.success(f"Welcome, {username}!")
@@ -47,6 +52,17 @@ def user_app(email):
         qr.save(buffer, format="PNG")
         st.sidebar.image(Image.open(buffer), caption="Your QR Code")
 
+    # Sidebar: Filter by ProjectID
+    st.sidebar.header("Filter by Project")
+    selected_project_id = st.sidebar.selectbox("Select a Project", project_ids, key="project_filter")
+
+    # Display project information
+    selected_project = projects_df[projects_df['ProjectID'] == selected_project_id].iloc[0]
+    st.sidebar.markdown("### Project Information")
+    st.sidebar.markdown(f"**Project Name:** {selected_project['ProjectName']}")
+    st.sidebar.markdown(f"**Researcher:** {selected_project['LeadResearcher']}")
+    st.sidebar.markdown(f"**Description:** {selected_project['Description']}")
+
     # Filters
     st.header("My Chats")
     st.markdown("### 🔍 Filter Your Chats")
@@ -54,7 +70,7 @@ def user_app(email):
     donation_filter = st.selectbox("Filter by donation status", ["All", "Donated", "Not Donated"])
 
     # Apply filters
-    filtered_df = chats_df.copy()
+    filtered_df = chats_df[chats_df['ProjectID'] == selected_project_id]  # Filter by selected ProjectID
     if search_text:
         filtered_df = filtered_df[filtered_df['ChatName'].str.contains(search_text, case=False)]
 
@@ -65,7 +81,7 @@ def user_app(email):
 
     # Display and edit table
     editable_cols = ['Donated', 'StartDate']
-    displayed_cols = ['ProjectID', 'ChatID', 'ChatName'] + editable_cols
+    displayed_cols = ['ChatID', 'ChatName'] + editable_cols
 
     st.markdown("### ☑️ Chats Picker")
     edited_df = st.data_editor(
@@ -76,7 +92,7 @@ def user_app(email):
             "StartDate": st.column_config.DateColumn("Start Date"),
             "Donated": st.column_config.CheckboxColumn("Donated"),
         },
-        disabled=['ProjectID', "ChatID", "ChatName"],
+        disabled=["ChatID", "ChatName"],
         hide_index=True
     )
 
