@@ -122,7 +122,7 @@ if not st.session_state["logged_in"]:
 
     # Login container
     with st.container():
-        # st.markdown("<div class='login-container'>", unsafe_allow_html=True)
+        st.markdown("<div class='login-container'>", unsafe_allow_html=True)
 
         # # Role selection and login
         # role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
@@ -142,15 +142,13 @@ if not st.session_state["logged_in"]:
         col1, col2 = st.columns(2)
 
         with col1:
+            # Role selection and login
+            role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
+
+            # Set default email and password to blank when first entering the site
+            email = st.text_input("Email", key="email_input", value="")
+            password = st.text_input("Password", type="password", key="password_input", value="")
             if st.button("Login", key="login_button"):
-                st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-
-                # Role selection and login
-                role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
-
-                # Set default email and password to blank when first entering the site
-                email = st.text_input("Email", key="email_input", value="")
-                password = st.text_input("Password", type="password", key="password_input", value="")
                 if not email or not password:
                     st.error("Please enter both email password.")
                 else:
@@ -206,7 +204,7 @@ if not st.session_state["logged_in"]:
 
             Join our community to contribute to important research initiatives.
             """)
-
+            
             st.markdown("### Features")
             st.markdown("""
             - Participate in research conversations
@@ -215,6 +213,7 @@ if not st.session_state["logged_in"]:
             - Connect with researchers
             - Generate insights from collective opinions
             """)
+
         # with col2:
         #     if st.button("Register New Account", key="register_button"):
         #         st.session_state["registration_mode"] = True
@@ -257,9 +256,9 @@ if not st.session_state["logged_in"]:
         #             st.session_state["logged_in"] = True
         #             st.session_state["role"] = "Researcher"
         #             st.session_state["email"] = "user41@example.com"
-    #     #             st.rerun()
+        #             st.rerun()
 
-    # # App information section
+    # App information section
     # st.markdown("---")
     # col1, col2 = st.columns(2)
 
