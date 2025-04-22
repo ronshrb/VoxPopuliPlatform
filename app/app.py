@@ -112,6 +112,8 @@ if not st.session_state["logged_in"]:
     st.markdown("<h1 class='main-header'>Welcome to VoxPopuli 🗣️</h1>", unsafe_allow_html=True)
     st.markdown("<p class='sub-header'>Collaborative Research Platform for Voice and Opinion Analysis</p>",
                 unsafe_allow_html=True)
+    st.markdown("<p class='sub-header'>By: Amit Cohen, Eren Fishbein, Roey Fabian, Ron Sharabi</p>",
+            unsafe_allow_html=True)
 
     # Create two columns for layout
     col1, spacer, col2 = st.columns([0.8, 0.2, 1])
