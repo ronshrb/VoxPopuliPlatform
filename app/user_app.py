@@ -84,7 +84,7 @@ def user_app(email):
 
     # Display and edit table
     editable_cols = ['Donated', 'StartDate']
-    displayed_cols = ['ChatName'] + editable_cols
+    displayed_cols = ['ChatID', 'ChatName'] + editable_cols
 
     st.markdown("### ☑️ Chats Picker")
     edited_df = st.data_editor(
