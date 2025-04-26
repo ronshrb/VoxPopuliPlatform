@@ -1,36 +1,66 @@
 # Vox Populi Platform
 
-UI - https://voxpopuliplatform-gmtbud6ewmqsypuqfg69cr.streamlit.app/
+Final Year B.Sc. Project in Data Engineering, Ben-Gurion University.
 
-The evolution of surveys has made them an indispensable tool in fields such as marketing,
-public opinion research, healthcare, education, and more.
-Surveys have evolved from door-to-door surveys, to phone surveys, to digital platforms,
-including online surveys, email surveys, and social media polls.
-These advancements have greatly expanded the reach of surveys, allowing researchers to
-gather data from a much larger and more diverse group of people in a fraction of the time it
-would have taken with traditional methods, but at the same time, they have posed greater
-risks for obtaining fake or unreliable data. The ease of access to surveys and the anonymity
-provided by online platforms can make it easier for respondents to provide inaccurate or
-false responses, either intentionally or unintentionally.
+## Overview
 
-With the rapid development of technology, everyone nowadays is exposed to news from all
-over the world and can share their opinions with others from the palm of their hands. The
-rise of smartphones, social media platforms, and instant messaging has made it easier than
-ever for individuals to access real-time information, engage in conversations, and participate
-in global discussions. This data is ready to be used to create up-to-date, more accurate, and
-more diverse surveys.
+Surveys have long been a vital tool in fields such as marketing, healthcare, education, and public opinion research. While their evolution—from door-to-door interviews to digital polls—has made data collection faster and more scalable, it has also introduced new challenges: unreliable responses, outdated information, and low engagement rates.
 
-To harness this data in the most effective way, we are developing the E2EE (End-to-End
-Encryption) Platform. With the VP Platform, the user could create a system which will
-generate connections to the participants’ instant messaging apps (Whatsapp, Telegram and
-Signal), manage the connections, feed a database constant data from chats of the
-particiapte’s choosing and anonymize this data.
-The VP Platform will solve the problems of out-of-date surveys, of misleading responses,
-and of low participation rates.
+The Vox Populi Platform is designed to revolutionize how we conduct surveys by tapping into real-time, user-consented messaging data. Leveraging end-to-end encryption (E2EE), instant messaging integrations, and advanced anonymization techniques, VP empowers researchers to gather high-quality, real-world insights—without compromising user privacy.
 
-Our platform is unique because of its ability to connect the user to apps with different types
-of protocols, to give the user information about the collected data and about the participants
-constantly, and it supports hebrew and hebrew anonymization.
-We plan to use mainly Matrix protocol and LLMs to achieve our goal and to create a
-management dashboard for the user in order to make use of our platform as easy and useful
-as we can.
+## Key Features
+
+
+    Cross-Platform Messaging Integration with WhatsApp, Telegram, and Signal.
+
+    Real-Time Data Feed to continuously collect chat data from participants' chosen conversations.
+
+    Smart Anonymization with built-in Hebrew support and NLP-based anonymization tools.
+
+    Management Dashboard for an intuitive user experience to monitor data streams and participants.
+
+## Why VPP?
+
+Unlike traditional surveys, our platform allows:
+
+    Real-time engagement with diverse and dynamic audiences.
+
+    Passive, yet consensual, data collection to improve accuracy.
+
+    Deep integration with encrypted protocols like Matrix.
+
+    Seamless support for Hebrew, including Hebrew-specific anonymization using LLMs.
+
+## Technologies Used
+
+    Matrix Protocol for secure and decentralized messaging integration.
+
+    NER Models & Regex for anonymization.
+
+    Custom Dashboard for full user control and visualization.
+
+    Cloud Database for managing continuous data streams.
+
+## Use Cases
+
+    Academic research with real-world chat data.
+
+    Sentiment analysis from anonymous conversations.
+
+    Real-time opinion polling without traditional survey fatigue.
+
+
+## Getting Started
+
+Setup instructions coming soon.
+
+## Status
+
+Currently in development.
+Key modules under active construction:
+
+    Messaging protocol bridge
+
+    Hebrew language anonymization engine
+
+    User dashboard UI - https://voxpopuliplatform-gmtbud6ewmqsypuqfg69cr.streamlit.app/
