@@ -10,44 +10,43 @@ The Vox Populi Platform is designed to revolutionize how we conduct surveys by t
 
 ## Key Features
 
+- Cross-Platform Messaging Integration with WhatsApp, Telegram, and Signal.
 
-    Cross-Platform Messaging Integration with WhatsApp, Telegram, and Signal.
+- Real-Time Data Feed to continuously collect chat data from participants' chosen conversations.
 
-    Real-Time Data Feed to continuously collect chat data from participants' chosen conversations.
+- Smart Anonymization with built-in Hebrew support and NLP-based anonymization tools.
 
-    Smart Anonymization with built-in Hebrew support and NLP-based anonymization tools.
-
-    Management Dashboard for an intuitive user experience to monitor data streams and participants.
+- Management Dashboard for an intuitive user experience to monitor data streams and participants.
 
 ## Why VPP?
 
 Unlike traditional surveys, our platform allows:
 
-    Real-time engagement with diverse and dynamic audiences.
+- Real-time engagement with diverse and dynamic audiences.
 
-    Passive, yet consensual, data collection to improve accuracy.
+- Passive, yet consensual, data collection to improve accuracy.
 
-    Deep integration with encrypted protocols like Matrix.
+- Deep integration with encrypted protocols like Matrix.
 
-    Seamless support for Hebrew, including Hebrew-specific anonymization using LLMs.
+- Seamless support for Hebrew, including Hebrew-specific anonymization using LLMs.
 
 ## Technologies Used
 
-    Matrix Protocol for secure and decentralized messaging integration.
+- Matrix Protocol for secure and decentralized messaging integration.
 
-    NER Models & Regex for anonymization.
+- NER Models & Regex for anonymization.
 
-    Custom Dashboard for full user control and visualization.
+- Custom Dashboard for full user control and visualization.
 
-    Cloud Database for managing continuous data streams.
+- Cloud Database for managing continuous data streams.
 
 ## Use Cases
 
-    Academic research with real-world chat data.
+- Academic research with real-world chat data.
 
-    Sentiment analysis from anonymous conversations.
+- Sentiment analysis from anonymous conversations.
 
-    Real-time opinion polling without traditional survey fatigue.
+- Real-time opinion polling without traditional survey fatigue.
 
 
 ## Getting Started
@@ -59,8 +58,8 @@ Setup instructions coming soon.
 Currently in development.
 Key modules under active construction:
 
-    Messaging protocol bridge
+- Messaging protocol bridge
 
-    Hebrew language anonymization engine
+- Hebrew language anonymization engine
 
-    User dashboard UI - https://voxpopuliplatform-gmtbud6ewmqsypuqfg69cr.streamlit.app/
+- User dashboard UI - https://voxpopuliplatform-gmtbud6ewmqsypuqfg69cr.streamlit.app/
