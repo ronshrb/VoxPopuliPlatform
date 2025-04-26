@@ -62,4 +62,4 @@ Key modules under active construction:
 
 - Hebrew language anonymization engine
 
-- User dashboard UI - https://voxpopuliplatform-gmtbud6ewmqsypuqfg69cr.streamlit.app/
+- User dashboard UI - https://voxpopuliplatform-569556670182.me-west1.run.app/
