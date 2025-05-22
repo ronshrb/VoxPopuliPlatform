@@ -39,3 +39,4 @@ matplotlib
 seaborn
 datetime
 sqlalchemy
+pymongo
