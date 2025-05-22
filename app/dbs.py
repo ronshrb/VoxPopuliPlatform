@@ -105,6 +105,7 @@ def add_chat(user_id, chat_name, chat_description, project_id=None):
         connection.execute(stmt)
         connection.commit()
 
+
 # Function to fetch all chats for a user
 def get_user_chats(user_id):
     with postgres_pool.connect() as connection:
