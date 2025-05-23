@@ -55,6 +55,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+db_name = "VoxPopuli" # change to your database name
+users = dbs.UsersColl(db_name)
+projects = dbs.ProjectsColl(db_name)
 
 # Initialize session state for login
 if "logged_in" not in st.session_state:
@@ -66,53 +69,8 @@ if "logged_in" not in st.session_state:
     st.session_state["registered_role"] = None
     # st.session_state["debug_mode"] = False
 
-
-# # Debug function to display dataframe
-# def display_debug_info():
-#     with st.expander("Debug Information"):
-#         st.write("Current Users in Database:")
-#         st.dataframe(dbs.get_users_df(), use_container_width=True)
-#         st.write(f"Number of users: {len(dbs.get_users_df())}")
-
-#         # Display role information for each user
-#         st.write("User Roles:")
-#         for idx, row in dbs.get_users_df().iterrows():
-#             st.write(f"- {row['Email']} ({row['Role']})")
-
-#         # Show specific columns with specific formats
-#         st.write("User Emails:")
-#         for email in dbs.get_users_df()['Email']:
-#             st.write(f"- {email} (type: {type(email)})")
-
-#         # Show projects and their lead researchers
-#         st.write("Projects and Lead Researchers:")
-#         projects_df = dbs.get_projects_df()
-#         for idx, row in projects_df.iterrows():
-#             researcher_id = row['LeadResearcher']
-#             researcher = dbs.get_users_df()[dbs.get_users_df()['UserID'] == researcher_id]
-#             researcher_email = researcher['Email'].iloc[0] if not researcher.empty else "Unknown"
-#             st.write(f"- {row['ProjectName']} (ID: {row['ProjectID']}) - Lead: {researcher_id} ({researcher_email})")
-
-#         # Show projects
-#         st.write("Projects:")
-#         st.dataframe(dbs.get_projects_df(), use_container_width=True)
-
-#         # Show sample chats
-#         st.write("Sample Chats (first 10):")
-#         st.dataframe(dbs.get_chats_df().head(10), use_container_width=True)
-
-#         # Show sample messages
-#         st.write("Sample Messages (first 10):")
-#         st.dataframe(dbs.get_messages_df().head(10), use_container_width=True)
-
-#         st.write("Session State:")
-#         st.write(st.session_state)
-
-
 # Main app
-# if st.session_state["registration_mode"]:
-#     # Call the registration page function
-#     register_page()
+
 if not st.session_state["logged_in"]:
     # Login header
     st.markdown("<h1 class='main-header'>Welcome to VoxPopuli 🗣️</h1>", unsafe_allow_html=True)
@@ -141,7 +99,8 @@ if not st.session_state["logged_in"]:
                 st.error("Please enter both email and password.")
             else:
                 # Find user by email - using case-insensitive comparison
-                user_data = dbs.get_user_by_email(email)
+                user_data = users.get_user_by_email(email)
+
 
                 if user_data:
                     # Get the stored hash from the database
@@ -197,7 +156,7 @@ else:
     if st.session_state["role"] == "User":
         user_app(st.session_state["email"])
     elif st.session_state["role"] == "Researcher":
-        researcher_app(st.session_state["email"])
+        researcher_app(st.session_state["email"], users, projects)
 
     # Optional logout button in sidebar
     if st.sidebar.button("Logout", key="main_logout"):

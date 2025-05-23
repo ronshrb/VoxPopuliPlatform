@@ -40,3 +40,4 @@ seaborn
 datetime
 sqlalchemy
 pymongo
+python-dotenv

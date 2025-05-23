@@ -105,10 +105,10 @@ def get_researcher_projects(researcher_id):
 
 
 
-def researcher_app(email):
+def researcher_app(email, users, projects):
     """Main function for the Researcher Dashboard."""
     # Find user by email
-    user_data = dbs.get_user_by_email(email)
+    user_data = users.get_user_by_email(email)
 
     if not user_data:
         st.error(f"User with email {email} not found in the database.")
@@ -121,35 +121,33 @@ def researcher_app(email):
         return
 
     # Get user information
-    username = user_data['Username']
     userid = user_data['UserID']
-    projects_by_id = dbs.get_projects_by_user_id(userid) if dbs.get_projects_by_user_id(userid) else None
+    users_projects = projects.get_projects_by_researcher(userid)
 
     # # Get the projects where this researcher is the lead
     # researcher_projects = get_researcher_projects(userid)
     # Page title
     st.title("Researcher Dashboard")
 
-    if not projects_by_id:
+    if not users_projects:
         st.warning("You are not currently assigned as a lead researcher for any projects.")
         st.info("Please contact the administrator to be assigned to a project.")
         return
     
-    projects_by_name = {record['ProjectName']: record['ProjectID'] for record in projects_by_id.items()}
-    projects_data_by_id = {key: dbs.ProjectDB(key) for key in projects_by_id.keys()}
+    # projects_by_name = {record['ProjectName']: record for record in users_projects}
+    projects_by_id = {record['ProjectID']: record for record in users_projects}
+    projects_by_name = projects_by_id
 
-    project_names = projects_by_name.keys() if projects_by_name else []
-    # researcher_projects = [item['data'] for item in projects_dict.values()]
+    project_names = list(projects_by_name.keys()) if projects_by_name else []
 
-    st.sidebar.success(f"Welcome, {username}!")
+
+    st.sidebar.success(f"Welcome, {userid}!")
 
     # Sidebar: Select Project
     st.sidebar.header("Select a Project")
-    # project_options = [p['ProjectName'] for p in projects]
-    # projects_dict = {p['ProjectName']: p['ProjectID'] for p in researcher_projects}
 
     # Default project selection
-    if "selected_project" not in st.session_state:
+    if "selected_project" not in st.session_state:  # taking the first one by default
         st.session_state["selected_project"] = projects_by_name[project_names[0]]
         st.session_state["selected_project_name"] = project_names[0]
 
@@ -168,9 +166,9 @@ def researcher_app(email):
         st.rerun()
 
     # Display selected project information in the sidebar
-    selected_project_id = st.session_state["selected_project"]
-    selected_project = next(p for p in projects_by_name.keys() if projects_by_name[p] == selected_project_id)
-
+    selected_project_id = st.session_state["selected_project"]['ProjectID']
+    # selected_project = next(p for p in projects_by_name.keys() if projects_by_name[p] == selected_project_id)
+    messages_coll = dbs.MessagesColl(selected_project_id)
     st.sidebar.markdown("### Project Information")
     st.sidebar.markdown(f"**Project Name:** {selected_project_name}")
     st.sidebar.markdown(f"**Project ID:** {selected_project_id}")
@@ -192,7 +190,7 @@ def researcher_app(email):
     elif menu == "Chat Analysis":
         st.header("Chat Analysis")
         st.markdown("Analyze chats for the selected project.")
-        st.dataframe(projects_data_by_id[selected_project_id].get_chats_df(), use_container_width=True)
+        st.dataframe(messages_coll.get_chats_info(), use_container_width=True)
 
     # User Management Page
     elif menu == "User Management":

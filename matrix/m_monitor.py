@@ -505,8 +505,8 @@ class MultiPlatformMessageMonitor:
             }
 
         mongo_conn = mongo_connector()
-        db = mongo_conn.get_db('Project1', 'Messages')
-        record = db.insert_one(record)
+        db = mongo_conn.get_db('VoxPopuli', 'PRJ001')
+        db.insert_one(record)
         print(f'Message {event_id} was recieved')
 
 async def main():
