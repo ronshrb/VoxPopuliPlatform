@@ -470,7 +470,7 @@ class MultiPlatformMessageMonitor:
         username = sender.split(":")[0][1:]  # Remove @ and domain
 
         # Process different message types
-        if msgtype in ["m.text", "m.notice", "m.emote"]:
+        if msgtype in ["m.text", "m.notice"]:
             body = content.get("body", "")
 
         elif msgtype == "m.image":
@@ -486,15 +486,15 @@ class MultiPlatformMessageMonitor:
             body = 'File'
         elif msgtype == "m.location":
             body = 'Location'
-        # elif msgtype == "m.emote":
-        #     body = 'Emote'
+        elif msgtype == "m.emote":
+            body = 'Emote'
         else:
             body = 'Unknown'
 
         record = {
                 "event_id": event_id,
                 "bridge_user": bridge_user , # Add the user_id of the monitor
-                "room_id": room_id,
+                "room_id": room_id.split(':')[0],  # Remove @ and domain
                 "room_name": room_name,
                 "sender_id": username,
                 # "message_type": msgtype,

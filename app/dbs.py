@@ -223,35 +223,12 @@ class MessagesColl:
         
         # Define the query
         q = """
-        SELECT room_id, room_name, platform, COUNT(event_id) AS total_messages
+        SELECT room_id ChatID, room_name ChatName, COUNT(event_id) AS total_messages, platform Platform
         FROM messages_table
         GROUP BY room_id, room_name, platform
         """
 
         return duckdb.query(q).to_df()
-    # def get_chats_info(self):
-    #     pipeline = [
-    #         {
-    #             "$group": {
-    #                 "_id": {
-    #                     "room_id": "$room_id",
-    #                     "room_name": "$room_name",
-    #                     "platform": "$platform"
-    #                 },
-    #                 "total_messages": {"$sum": 1}
-    #             }
-    #         },
-    #         {
-    #             "$project": {
-    #                 "room_id": "$_id.room_id",
-    #                 "room_name": "$_id.room_name",
-    #                 "platform": "$_id.platform",
-    #                 "total_messages": 1,
-    #                 "_id": 0
-    #             }
-    #         }
-    #     ]
-    #     return pd.DataFrame(list(self.messages.aggregate(pipeline)))
     
     def get_users(self):
         q = f"""
@@ -280,9 +257,25 @@ class UsersColl:
     def get_users(self):
         return self.users_df
     
+    
     def get_user_by_email(self, email):
         user = self.users.find_one({"Email": email})
         return user if user else None
+    
+    # def user_statistics_by_project(self, project_id):
+    #     # Register the DataFrame as a DuckDB table
+    #     duckdb.register("users_table", self.users_df)
+        
+    #     # Define the query
+    #     q = f"""
+    #     SELECT UserID, COUNT(DISTINCT ChatID) AS TotalChats
+    #     FROM users_table
+    #     LEFT JOIN messages ON users_table.UserID = messages.Userbridge_userID
+    #     WHERE ProjectID = '{project_id}'
+    #     GROUP BY UserID
+    #     """
+
+    #     return duckdb.query(q).to_df()
     
 
 class ProjectsColl:
@@ -333,6 +326,10 @@ class ProjectsColl:
             if user_id in users:
                 users.remove(user_id)
                 self.projects.update_one({"ProjectID": project_id}, {"$set": {"Users": users}})
+
+    def get_users(self):
+        users = self.users.find()
+        return pd.DataFrame(list(users))
 
     def get_project_researchers(self, project_id):
         project = self.projects.find_one({"ProjectID": project_id})

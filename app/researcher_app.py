@@ -185,6 +185,7 @@ def researcher_app(email, users, projects):
     if menu == "Project Analytics":
         st.header("Project Analytics")
         st.markdown("This page is under construction.")
+        st.dataframe(messages_coll.get_chats_info(), use_container_width=True, hide_index=True)
 
     # Chat Analysis Page
     elif menu == "Chat Analysis":
