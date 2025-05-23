@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 import os
 import connectors
 
+# postgres
+
 postgres_conn = connectors.postgres_connector()
 postgres_pool = postgres_conn.create_engine()
 
@@ -187,3 +189,10 @@ def get_researcher_projects(researcher_id):
         stmt = select(projects_table).where(projects_table.c.LeadResearcher == researcher_id)
         result = connection.execute(stmt)
         return [dict(row._mapping) for row in result]
+    
+
+# mongo
+# mongo_conn = connectors.mongo_connector()
+
+# def pull_messages(chat_id):
+

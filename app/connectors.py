@@ -30,15 +30,14 @@ class postgres_connector:
     
 class mongo_connector():
     def __init__(self):
-        self.db_connection_string = os.environ["mongo-db-connection-string"] 
+        self.db_connection_string = os.environ["MONGODB_URI"] 
         self.client = MongoClient(self.db_connection_string)
         self.db = None
-
 
     def get_client(self):
         return self.client
     
-    def get_db(self, db_name, collection_name):
+    def get_table(self, db_name, collection_name):
         return self.client[db_name][collection_name]
 
         
