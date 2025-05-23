@@ -36,7 +36,6 @@ class mongo_connector():
         self.client = MongoClient(self.db_connection_string)
         self.db = None
 
-
     def get_client(self):
         return self.client
     
