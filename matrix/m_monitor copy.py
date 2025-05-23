@@ -34,11 +34,12 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 class BridgeConfig:
     """Configuration for different bridge types"""
 
-    def __init__(self, name: str, bot_mxid: str, room_indicators: List[str], message_patterns: Optional[Dict] = None):
+    def __init__(self, name: str, bot_mxid: str, room_indicators: List[str], message_patterns: Optional[Dict] = None, owner: str = "Unknown"):
         self.name = name
         self.bot_mxid = bot_mxid
         self.room_indicators = room_indicators  # Strings that indicate this type of bridge room
         self.message_patterns = message_patterns or {}
+        self.owner = owner  # Add owner attribute
 
 class mongo_connector():
     def __init__(self):
@@ -74,7 +75,8 @@ class MultiPlatformMessageMonitor:
                 room_indicators=["WhatsApp", "WA:"],
                 message_patterns={
                     'sender_format': r"^(.*?):\s+(.*?)$"  # "Sender: Message" format
-                }
+                },
+                owner="WhatsApp Owner"  # Set owner for WhatsApp
             )
 
         if 'signal' in platforms:
@@ -84,7 +86,8 @@ class MultiPlatformMessageMonitor:
                 room_indicators=["Signal", "SG:", "Signal Chat"],
                 message_patterns={
                     'sender_format': r"^(.*?):\s+(.*?)$"  # Similar format for Signal
-                }
+                },
+                owner="Signal Owner"  # Set owner for Signal
             )
 
         if 'telegram' in platforms:
@@ -94,7 +97,8 @@ class MultiPlatformMessageMonitor:
                 room_indicators=["Telegram", "TG:", "Telegram Chat"],
                 message_patterns={
                     'sender_format': r"^(.*?):\s+(.*?)$"  # Similar format for Telegram
-                }
+                },
+                owner="Telegram Owner"  # Set owner for Telegram
             )
 
         # Print configuration
@@ -449,7 +453,6 @@ class MultiPlatformMessageMonitor:
         msgtype = content.get("msgtype")
         sender = event.get("sender", "Unknown")
         event_id = event.get("event_id")
-        bridge_user= self.user_id.split(':')[0][1:]  # Remove @ and domain
 
         # Skip non-message events or redactions
         if not msgtype or msgtype == "m.room.redaction":
@@ -458,9 +461,10 @@ class MultiPlatformMessageMonitor:
         # Get chat info
         room_info = self.bridge_rooms[room_id]
         room_name = room_info["name"]
-        # bridge_user = room_info["config"]["user_id"]
         platform = room_info["platform"].upper()
         bridge_config = room_info["config"]
+        bridge_user = room_info.get("user", "Unknown")  # Retrieve the user using the bridge
+        bridge_owner = bridge_config.owner  # Retrieve the owner of the bridge
 
         # Format timestamp
         ts = event.get("origin_server_ts", 0) / 1000  # Convert ms to seconds
@@ -486,18 +490,16 @@ class MultiPlatformMessageMonitor:
             body = 'File'
         elif msgtype == "m.location":
             body = 'Location'
-        # elif msgtype == "m.emote":
-        #     body = 'Emote'
         else:
             body = 'Unknown'
 
         record = {
                 "event_id": event_id,
-                "bridge_user": bridge_user , # Add the user_id of the monitor
+                "bridge_user": bridge_user,  # Add the bridge user to the record
+                "bridge_owner": bridge_owner,  # Add the bridge owner to the record
                 "room_id": room_id,
                 "room_name": room_name,
                 "sender_id": username,
-                # "message_type": msgtype,
                 "message_body": body,
                 "timestamp": time_str,
                 "platform": platform,
@@ -507,7 +509,7 @@ class MultiPlatformMessageMonitor:
         mongo_conn = mongo_connector()
         db = mongo_conn.get_db('Project1', 'Messages')
         record = db.insert_one(record)
-        print(f'Message {event_id} was recieved')
+        print(f'Message {event_id} was received')
 
 async def main():
     parser = argparse.ArgumentParser(

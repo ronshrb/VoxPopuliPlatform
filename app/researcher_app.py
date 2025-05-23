@@ -6,6 +6,7 @@ import pandas as pd
 from datetime import datetime
 
 
+
 def register_user(username, email, password):
     """Register a new user in the database."""
     # Check if the username already exists
@@ -97,9 +98,11 @@ def plot_chat_activity(project_id):
 
 def get_researcher_projects(researcher_id):
     """Get projects where the researcher is the lead."""
-    projects = dbs.get_projects()
-    researcher_projects = [p for p in projects if p['LeadResearcher'] == researcher_id]
-    return researcher_projects
+    # projects = dbs.get_projects()
+    # researcher_projects = [p for p in projects if p['LeadResearcher'] == researcher_id]
+    # return researcher_projects
+    
+
 
 
 def researcher_app(email):
@@ -120,53 +123,59 @@ def researcher_app(email):
     # Get user information
     username = user_data['Username']
     userid = user_data['UserID']
+    projects_by_id = dbs.get_projects_by_user_id(userid) if dbs.get_projects_by_user_id(userid) else None
 
-    # Get the projects where this researcher is the lead
-    researcher_projects = get_researcher_projects(userid)
-
+    # # Get the projects where this researcher is the lead
+    # researcher_projects = get_researcher_projects(userid)
     # Page title
     st.title("Researcher Dashboard")
 
-    if not researcher_projects:
+    if not projects_by_id:
         st.warning("You are not currently assigned as a lead researcher for any projects.")
         st.info("Please contact the administrator to be assigned to a project.")
         return
+    
+    projects_by_name = {record['ProjectName']: record['ProjectID'] for record in projects_by_id.items()}
+    projects_data_by_id = {key: dbs.ProjectDB(key) for key in projects_by_id.keys()}
+
+    project_names = projects_by_name.keys() if projects_by_name else []
+    # researcher_projects = [item['data'] for item in projects_dict.values()]
 
     st.sidebar.success(f"Welcome, {username}!")
 
     # Sidebar: Select Project
     st.sidebar.header("Select a Project")
-    project_options = [p['ProjectName'] for p in researcher_projects]
-    projects_dict = {p['ProjectName']: p['ProjectID'] for p in researcher_projects}
+    # project_options = [p['ProjectName'] for p in projects]
+    # projects_dict = {p['ProjectName']: p['ProjectID'] for p in researcher_projects}
 
     # Default project selection
     if "selected_project" not in st.session_state:
-        st.session_state["selected_project"] = projects_dict[project_options[0]]
-        st.session_state["selected_project_name"] = project_options[0]
+        st.session_state["selected_project"] = projects_by_name[project_names[0]]
+        st.session_state["selected_project_name"] = project_names[0]
 
     # Allow changing projects
     selected_project_name = st.sidebar.selectbox(
         "Project",
-        project_options,
-        index=project_options.index(st.session_state["selected_project_name"]),
+        project_names,
+        index=project_names.index(st.session_state["selected_project_name"]),
         key="sidebar_project_select"
     )
 
     # Update session state if the project changes
     if selected_project_name != st.session_state["selected_project_name"]:
-        st.session_state["selected_project"] = projects_dict[selected_project_name]
+        st.session_state["selected_project"] = projects_by_name[selected_project_name]
         st.session_state["selected_project_name"] = selected_project_name
         st.rerun()
 
     # Display selected project information in the sidebar
     selected_project_id = st.session_state["selected_project"]
-    selected_project = next(p for p in researcher_projects if p['ProjectID'] == selected_project_id)
+    selected_project = next(p for p in projects_by_name.keys() if projects_by_name[p] == selected_project_id)
 
     st.sidebar.markdown("### Project Information")
     st.sidebar.markdown(f"**Project Name:** {selected_project_name}")
     st.sidebar.markdown(f"**Project ID:** {selected_project_id}")
-    st.sidebar.markdown(f"**Status:** {selected_project['Status']}")
-    st.sidebar.markdown(f"**Start Date:** {selected_project['StartDate']}")
+    # st.sidebar.markdown(f"**Status:** {selected_project['Status']}")
+    # st.sidebar.markdown(f"**Start Date:** {selected_project['StartDate']}")")
 
     # Sidebar menu
     menu = st.sidebar.selectbox(
@@ -183,6 +192,7 @@ def researcher_app(email):
     elif menu == "Chat Analysis":
         st.header("Chat Analysis")
         st.markdown("Analyze chats for the selected project.")
+        st.dataframe(projects_data_by_id[selected_project_id].get_chats_df(), use_container_width=True)
 
     # User Management Page
     elif menu == "User Management":
@@ -190,7 +200,7 @@ def researcher_app(email):
         st.markdown("Manage users in your project.")
 
         # Fetch users in the project
-        project_users = dbs.get_users_by_project(selected_project_id)
+        project_users = dbs.get_users()
 
         # Display users in the project
         st.subheader(f"Users in Project: {selected_project_name}")

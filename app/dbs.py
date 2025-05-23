@@ -5,6 +5,8 @@ from sqlalchemy.sql import insert, select
 from datetime import datetime, timedelta
 import os
 import connectors
+import duckdb
+import pandas as pd
 
 postgres_conn = connectors.postgres_connector()
 postgres_pool = postgres_conn.create_engine()
@@ -174,6 +176,18 @@ def get_user_by_id(user_id):
         result = connection.execute(stmt).fetchone()
         return dict(result._mapping) if result else None
     
+# Function to fetch project IDs by user ID
+def get_projects_by_user_id(user_id):
+    with postgres_pool.connect() as connection:
+        stmt = (
+            select(chats_table.c.ProjectID)
+            .where(chats_table.c.UserID == user_id)
+            .distinct()  # Ensure unique project IDs
+        )
+        result = connection.execute(stmt)
+        return {row['ProjectID']: row['ProjectName'] for row in result if row['ProjectID']}  # Return a list of project IDs
+        # return result.fetchone()  # Return all project IDs as a list of tuples
+
 # Function to fetch a chat by its ID
 def get_chat_by_id(chat_id):
     with postgres_pool.connect() as connection:
@@ -187,3 +201,33 @@ def get_researcher_projects(researcher_id):
         stmt = select(projects_table).where(projects_table.c.LeadResearcher == researcher_id)
         result = connection.execute(stmt)
         return [dict(row._mapping) for row in result]
+    
+
+
+# Mongo
+mongo_conn = connectors.mongo_connector()
+
+class ProjectDB:
+    def __init__(self, project_id):
+        self.project_id = project_id
+        self.client = mongo_conn.get_client()
+        self.messages = mongo_conn.get_table(project_id, "Messages")
+        self.messages_df = pd.DataFrame(list(self.messages.find()))
+
+    def get_messages(self):
+        return self.messages_df
+    
+    def get_chats_info(self):
+        q = f"""
+        SELECT room_id, room_name, platform, COUNT(event_id) AS total_messages
+        FROM {self.messages_df}
+        GROUP BY room_id, room_name, platform
+        """
+        return duckdb.query(q).to_df()
+    
+    def get_users(self):
+        q = f"""
+        SELECT DISTINCT sender_id, sender_name
+        FROM {self.messages_df}
+        """
+        return duckdb.query(q).to_df()
