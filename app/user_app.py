@@ -4,9 +4,11 @@ from io import BytesIO
 from PIL import Image
 import qrcode
 import dbs
+from web_monitor import WebMonitor  # Import WebMonitor
+import asyncio
 
 
-def user_app(email):
+def user_app(email, hashed_password):
     """Main function for the User Dashboard."""
     # Fetch user data
     user_data = dbs.get_user_by_email(email)
@@ -22,7 +24,7 @@ def user_app(email):
         return
 
     # Get user information
-    username = user_data['Username']
+    # username = user_data['Username']
     userid = user_data['UserID']
 
     # Fetch user's chats
@@ -41,14 +43,22 @@ def user_app(email):
 
     # Page title
     st.title("User Dashboard")
-    st.sidebar.success(f"Welcome, {username}!")
+    st.sidebar.success(f"Welcome, {userid}!")
 
     # Sidebar QR Code
     if st.sidebar.button("Generate QR Code"):
-        qr = qrcode.make(f"User: {username}")
-        buffer = BytesIO()
-        qr.save(buffer, format="PNG")
-        st.sidebar.image(Image.open(buffer), caption="Your QR Code")
+        # qr = qrcode.make(f"User: {username}")
+        # buffer = BytesIO()
+        # qr.save(buffer, format="PNG")
+        # st.sidebar.image(Image.open(buffer), caption="Your QR Code")
+        # Create an instance of WebMonitor
+        web_monitor = WebMonitor(username=userid, password=hashed_password)  # Replace with the actual password
+
+        # Call the generate_qr_code_and_display function
+        try:
+            asyncio.run(web_monitor.generate_qr_code_and_display())
+        except Exception as e:
+            st.sidebar.error(f"Failed to generate QR code: {str(e)}")
 
     # Sidebar: Filter by ProjectID
     st.sidebar.header("Filter by Project")

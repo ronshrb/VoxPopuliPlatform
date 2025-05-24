@@ -58,8 +58,8 @@ Setup instructions coming soon.
 Currently in development.
 Key modules under active construction:
 
-- Messaging protocol bridge
+- Implementation of the anonymization before message logging
 
-- Hebrew language anonymization engine
+- Connecting the UI to the database
 
-- User dashboard UI - https://voxpopuliplatform-569556670182.me-west1.run.app/
+- Adding more features to the UI

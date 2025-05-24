@@ -4,6 +4,8 @@ import dbs
 import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime
+from web_monitor import WebMonitor
+import asyncio
 
 
 
@@ -199,52 +201,73 @@ def researcher_app(email, users, projects):
         st.markdown("Manage users in your project.")
 
         # Fetch users in the project
-        project_users = dbs.get_users()
+        # project_users = dbs.get_users()
 
-        # Display users in the project
-        st.subheader(f"Users in Project: {selected_project_name}")
-        if not project_users:
-            st.info("No users are currently registered in this project.")
-        else:
-            users_df = pd.DataFrame(project_users)
-            st.dataframe(users_df[['UserID', 'Username', 'Email', 'Role', 'Active', 'CreatedAt']])
+        # # Display users in the project
+        # st.subheader(f"Users in Project: {selected_project_name}")
+        # if not project_users:
+        #     st.info("No users are currently registered in this project.")
+        # else:
+        #     users_df = pd.DataFrame(project_users)
+        #     st.dataframe(users_df[['UserID', 'Username', 'Email', 'Role', 'Active', 'CreatedAt']])
 
-        st.markdown("---")
+        # st.markdown("---")
 
         # Form to register a new user
         st.subheader("Register a New User")
         with st.form("register_user_form"):
-            username = st.text_input("Username", key="new_user_username")
-            email = st.text_input("Email", key="new_user_email")
-            password = st.text_input("Password", type="password", key="new_user_password")
-            confirm_password = st.text_input("Confirm Password", type="password", key="new_user_confirm_password")
-            role = st.selectbox("Role", ["User", "Researcher"], key="new_user_role")
-            active = st.checkbox("Active", value=True, key="new_user_active")
+            # Input fields for registration
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
+            server_url = "https://vox-populi.dev"
 
-            submit_button = st.form_submit_button("Register User")
-
+            # Register button
+            submit_button = st.form_submit_button("Register")
             if submit_button:
-                if not username or not email or not password or not confirm_password:
+                if not username or not password or not confirm_password:
                     st.error("Please fill in all fields.")
                 elif password != confirm_password:
                     st.error("Passwords do not match.")
                 else:
-                    # Hash the password
-                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    # Run the registration process
+                    with st.spinner("Registering user..."):
+                        result = asyncio.run(WebMonitor.handle_registration(username, password, server_url))
+                        if result["status"] == "success":
+                            st.success(result["message"])
+                        else:
+                            st.error(result["message"])
+            # username = st.text_input("Username", key="new_user_username")
+            # email = st.text_input("Email", key="new_user_email")
+            # password = st.text_input("Password", type="password", key="new_user_password")
+            # confirm_password = st.text_input("Confirm Password", type="password", key="new_user_confirm_password")
+            # role = st.selectbox("Role", ["User", "Researcher"], key="new_user_role")
+            # active = st.checkbox("Active", value=True, key="new_user_active")
 
-                    # Add the user to the database
-                    try:
-                        dbs.add_user(
-                            email=email,
-                            username=username,
-                            hashed_password=hashed_password,
-                            role=role,
-                            active=active
-                        )
-                        st.success(f"User {username} registered successfully!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error registering user: {str(e)}")
+            # submit_button = st.form_submit_button("Register User")
+
+            # if submit_button:
+            #     if not username or not email or not password or not confirm_password:
+            #         st.error("Please fill in all fields.")
+            #     elif password != confirm_password:
+            #         st.error("Passwords do not match.")
+            #     else:
+            #         # Hash the password
+            #         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+            #         # Add the user to the database
+            #         try:
+            #             dbs.add_user(
+            #                 email=email,
+            #                 username=username,
+            #                 hashed_password=hashed_password,
+            #                 role=role,
+            #                 active=active
+            #             )
+            #             st.success(f"User {username} registered successfully!")
+            #             st.rerun()
+            #         except Exception as e:
+            #             st.error(f"Error registering user: {str(e)}")
 
     # Project Creation Page (Blank)
     elif menu == "Project Creation":
