@@ -15,9 +15,8 @@ from user_app import user_app
 from researcher_app import researcher_app
 # from register_app import register_page
 import dbs
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 # Custom CSS for styling
 st.markdown("""
 <style>
