@@ -28,7 +28,7 @@ class MessagesColl:
         
         # Define the query
         q = """
-        SELECT room_id ChatID, room_name ChatName, COUNT(event_id) AS total_messages, platform Platform
+        SELECT room_id "Chat ID", room_name "Chat Name", COUNT(event_id) AS "Total Messages", platform Platform
         FROM messages_table
         GROUP BY room_id, room_name, platform
         """
