@@ -24,11 +24,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Matrix server configuration
-SYNAPSE_URL = os.getenv("SYNAPSE_URL", "https://vox-populi.dev")
-WHATSAPP_BOT_MXID = os.getenv("WHATSAPP_BOT_MXID", "@whatsappbot:vox-populi.dev")
-TELEGRAM_BOT_MXID = os.getenv("TELEGRAM_BOT_MXID", "@telegrambot:vox-populi.dev")
-SIGNAL_BOT_MXID = os.getenv("SIGNAL_BOT_MXID", "@signalbot:vox-populi.dev")
+SYNAPSE_URL = os.getenv("SYNAPSE_URL")
+WHATSAPP_BOT_MXID = os.getenv("WHATSAPP_BOT_MXID")
+TELEGRAM_BOT_MXID = os.getenv("TELEGRAM_BOT_MXID")
+SIGNAL_BOT_MXID = os.getenv("SIGNAL_BOT_MXID")
 MONGODB_URI = os.getenv("MONGODB_URI")
+ADMIN_ACCESS_TOKEN = os.getenv("ADMIN_ACCESS_TOKEN")
 
 
 class BridgeConfig:
@@ -106,33 +107,42 @@ class MultiPlatformMessageMonitor:
             
     async def register(self, username, password):
         """Register a new user on the Matrix server"""
-        register_url = f"{self.synapse_url}/_matrix/client/v3/register"
-
-        payload = {
-            "username": username,
-            "password": password,
-            "auth": {
-                "type": "m.login.dummy"  # Dummy authentication for registration
-            }
+        headers = {
+            "Authorization": f"Bearer {ADMIN_ACCESS_TOKEN}",
+            "Content-Type": "application/json"
         }
 
-        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+        # Remove port number from the domain
+        domain = self.synapse_url.split("//")[1].split(":")[0]
+        register_url = f"{self.synapse_url}/_synapse/admin/v2/users/@{username}:{domain}"
+
+        payload = {
+            "password": password,
+            "displayname": username,
+            "admin": False,
+            "deactivated": False
+        }
+
+        async with httpx.AsyncClient(verify=True, timeout=30.0) as client:
             try:
-                print(f"Sending registration request to {register_url}")
-                response = await client.post(register_url, json=payload)
+                logger.info(f"Sending registration request to {register_url}")
+                response = await client.put(register_url, headers=headers, json=payload)
 
-                print(f"Registration response status: {response.status_code}")
+                logger.info(f"Registration response status: {response.status_code}")
+                if response.text:
+                    logger.info(f"Response body: {response.text[:500]}")
 
-                if response.status_code == 200:
-                    data = response.json()
-                    print(f"Successfully registered user: {username}")
-                    return data  # Return the response data (e.g., access token, user ID)
+                if response.status_code in [200, 201]:
+                    logger.info(f"Successfully registered user: {username}")
+                    return response.json() if response.text else {}
                 else:
-                    print(f"Registration failed: {response.status_code}")
-                    print(f"Response: {response.text}")
+                    logger.error(f"Registration failed: {response.status_code} - {response.text}")
                     return None
+            except httpx.HTTPError as http_err:
+                logger.error(f"HTTP error during registration: {http_err}")
+                return None
             except Exception as e:
-                print(f"Exception during registration: {str(e)}")
+                logger.error(f"Exception during registration: {str(e)}")
                 return None
             
     async def login(self):
