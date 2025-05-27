@@ -494,6 +494,7 @@ class MultiPlatformMessageMonitor:
         message_url_template = f"{self.synapse_url}/_matrix/client/v3/rooms/{{room_id}}/send/m.room.message"
 
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            room_id = None
             try:
                 # Step 1: Create a direct chat with the Signal bot
                 print(f"Creating a direct chat with the Signal bot: {SIGNAL_BOT_MXID}")
@@ -515,7 +516,27 @@ class MultiPlatformMessageMonitor:
                 room_id = create_room_response.json().get("room_id")
                 print(f"Direct chat created with Signal bot. Room ID: {room_id}")
 
-                # Step 2: Send the 'login qr' message to the Signal bot
+                # Step 2: Send the starting message to the Signal bot
+                print("Requesting QR code from the Signal bot...")
+                message_url = message_url_template.format(room_id=room_id)
+                login_message_payload = {
+                    "msgtype": "m.text",
+                    "body": "Hello"
+                }
+                login_message_response = await client.post(
+                    message_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    json=login_message_payload
+                )
+
+                if login_message_response.status_code != 200:
+                    print(f"Failed to send 'login qr' message: {login_message_response.status_code} - {login_message_response.text}")
+                    return None
+                
+                print("Waiting for the bot to respond...")
+                await asyncio.sleep(5)  
+
+                # Step 3: Send the 'login qr' message to the Signal bot
                 print("Requesting QR code from the Signal bot...")
                 message_url = message_url_template.format(room_id=room_id)
                 login_message_payload = {
@@ -535,7 +556,7 @@ class MultiPlatformMessageMonitor:
                 print("Waiting for QR code message...")
                 await asyncio.sleep(10)  # Wait for the QR code message to arrive
 
-                # Step 3: Retrieve the QR code from the room's messages
+                # Step 4: Retrieve the QR code from the room's messages
                 room_events_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/messages"
                 response = await client.get(
                     room_events_url,
@@ -578,7 +599,25 @@ class MultiPlatformMessageMonitor:
             except Exception as e:
                 print(f"Error during QR code generation: {str(e)}")
                 return None
-
+            finally:
+                # Always leave the room if it was created
+                if room_id:
+                    await self._leave_room(client, room_id)
+    async def _leave_room(self, client, room_id):
+        """Leave the Matrix room with the given room_id."""
+        try:
+            leave_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/leave"
+            response = await client.post(
+                leave_url,
+                headers={"Authorization": f"Bearer {self.access_token}"}
+            )
+            if response.status_code == 200:
+                print(f"Successfully left the room {room_id}")
+            else:
+                print(f"Failed to leave the room {room_id}: {response.status_code} - {response.text}")
+        except Exception as e:
+            print(f"Exception while leaving the room {room_id}: {str(e)}")
+            
     async def insert_msg_to_mongo(self, room_id, event):
         """Insert a message into MongoDB."""
         lines = []

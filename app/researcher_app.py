@@ -6,6 +6,7 @@ import pandas as pd
 from datetime import datetime
 from web_monitor import WebMonitor
 import asyncio
+from m_monitor import MultiPlatformMessageMonitor
 
 
 
@@ -232,11 +233,24 @@ def researcher_app(email, users, projects):
                 else:
                     # Run the registration process
                     with st.spinner("Registering user..."):
-                        result = asyncio.run(WebMonitor.handle_registration(username, password, server_url))
-                        if result["status"] == "success":
-                            st.success(result["message"])
-                        else:
-                            st.error(result["message"])
+                        try:
+                            
+                            # Create a WebMonitor instance with consistent server URL
+                            server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
+                            web_monitor = WebMonitor(
+                                username=username, 
+                                password=password,
+                                server_url=server_url
+                            )
+                            # Properly await the async register method
+                            result = asyncio.run(web_monitor.register())
+                            if result:
+                                st.success(f"User {username} registered successfully!")
+                                st.info(f"When logging in, use server URL: {server_url}")
+                            else:
+                                st.error("Registration failed. Username might already exist.")
+                        except Exception as e:
+                            st.error(f"Registration error: {str(e)}")
             # username = st.text_input("Username", key="new_user_username")
             # email = st.text_input("Email", key="new_user_email")
             # password = st.text_input("Password", type="password", key="new_user_password")

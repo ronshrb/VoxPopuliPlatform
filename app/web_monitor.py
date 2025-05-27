@@ -35,12 +35,13 @@ class WebMonitor:
         else:
             return {"status": "error", "message": "Registration failed. Username might already exist."}
     
-        # Function to handle user registration
-    async def handle_registration(username, password, server_url):
+    async def handle_registration(self, username, password, server_url):
+        """Function to handle user registration"""
         # Initialize the WebMonitor instance
         web_monitor = WebMonitor(username=username, password=password, server_url=server_url)
         # Call the register method
-        result = await web_monitor.register()
+        result = asyncio.run(web_monitor.register(username, password))
+        # result = await web_monitor.register()
         return result
 
     async def generate_qr_code(self):
@@ -89,8 +90,9 @@ class WebMonitor:
                 qr_image.save(buffer, format="PNG")
                 buffer.seek(0)
 
-                st.image(buffer, caption="Generated QR Code", use_column_width=True)
-                return {"status": "success", "message": "QR code displayed successfully."}
+                # st.image(buffer, caption="Generated QR Code", use_column_width=True)
+                return buffer
+                # return {"status": "success", "message": "QR code displayed successfully."}
             else:
                 st.error("Failed to generate QR code.")
                 return {"status": "error", "message": "Failed to generate QR code."}
