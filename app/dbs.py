@@ -22,6 +22,9 @@ class MessagesColl:
     def get_messages(self):
         return self.messages_df
     
+    def get_messages_by_user(self, userid):
+        pass
+
     def get_chats_info(self):
         # Register the DataFrame as a DuckDB table
         duckdb.register("messages_table", self.messages_df)
@@ -48,10 +51,9 @@ class UsersColl:
         self.users = mongo_conn.get_table(db_name, 'Users')
         self.users_df = pd.DataFrame(list(self.users.find()))
 
-    def add_user(self, user_id, email, hashed_password, role, active=True):
+    def add_user(self, user_id, hashed_password, role='User', active=True):
         user_data = {
             "UserID": user_id,
-            "Email": email,
             'HashedPassword': hashed_password,
             "Role": role,
             "Active": active,
@@ -62,6 +64,9 @@ class UsersColl:
     def get_users(self):
         return self.users_df
     
+    def get_user_by_id(self, user_id):
+        user = self.users.find_one({"UserID": user_id})
+        return user if user else None
     
     def get_user_by_email(self, email):
         user = self.users.find_one({"Email": email})

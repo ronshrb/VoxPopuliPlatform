@@ -8,27 +8,27 @@ from web_monitor import WebMonitor  # Import WebMonitor
 import asyncio
 
 
-def user_app(email, hashed_password=None):
+def user_app(userid, users, projects):
     """Main function for the User Dashboard."""
-    # # Fetch user data
-    # user_data = dbs.get_user_by_email(email)
+    # Fetch user data
+    user_data = users.get_user_by_id(userid)
 
-    # if not user_data:
-    #     st.error(f"User with email {email} not found in the database.")
-    #     st.write("Please log out and log in again.")
-    #     if st.button("Logout", key="user_logout"):
-    #         st.session_state["logged_in"] = False
-    #         st.session_state["role"] = None
-    #         st.session_state["email"] = None
-    #         st.rerun()
-    #     return
+    if not user_data:
+        st.error(f"User with username {userid} not found in the database.")
+        st.write("Please log out and log in again.")
+        if st.button("Logout", key="user_logout"):
+            st.session_state["logged_in"] = False
+            st.session_state["role"] = None
+            st.session_state["user"] = None
+            st.rerun()
+        return
 
     # Get user information
     # username = user_data['Username']
     # userid = user_data['UserID']
 
     # # Fetch user's chats
-    # user_chats = dbs.get_user_chats(userid)
+    # user_chats = users.get_user_chats(userid)
 
     # # Convert chats to a DataFrame (empty DataFrame if no chats)
     # chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'ChatName', 'Donated', 'StartDate', 'ProjectID'])
@@ -42,15 +42,15 @@ def user_app(email, hashed_password=None):
     # projects_names = projects_df['ProjectName'].unique() if not projects_df.empty else []
 
     # Page title
-    # st.title("User Dashboard")
-    # st.sidebar.success(f"Welcome, {userid}!")
+    st.title("User Dashboard")
+    st.sidebar.success(f"Welcome, {userid}!")
 
     # Sidebar QR Code
     if st.sidebar.button("Generate QR Code"):
         # Use st.session_state to persist WebMonitor instance
         if "web_monitor" not in st.session_state:
             # Create and login only if not already in session_state
-            web_monitor = WebMonitor(username=userid, password=password)
+            web_monitor = WebMonitor(username=userid, password=user_data['HashedPassword'])
             # Perform login and store the instance if successful
             try:
                 login_result = asyncio.run(web_monitor.login())

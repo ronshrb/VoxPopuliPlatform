@@ -10,7 +10,7 @@ from m_monitor import MultiPlatformMessageMonitor
 
 
 
-def register_user(username, email, password):
+def register_user(username, password):
     """Register a new user in the database."""
     # Check if the username already exists
     users = dbs.get_users()
@@ -20,16 +20,11 @@ def register_user(username, email, password):
         st.error("Username already exists.")
         return False
 
-    # Check if the email already exists
-    if any(u['Email'].lower() == email.lower() for u in users):
-        st.error("Email already in use.")
-        return False
-
     # Hash the password
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     # Add the user to the database
-    dbs.add_user(email, username, hashed_password, role="User", active=True)
+    dbs.add_user(username, hashed_password, role="User", active=True)
 
     st.success(f"User {username} registered successfully.")
     return True
@@ -108,23 +103,23 @@ def get_researcher_projects(researcher_id):
 
 
 
-def researcher_app(email, users, projects):
+def researcher_app(userid, users, projects):
     """Main function for the Researcher Dashboard."""
     # Find user by email
-    user_data = users.get_user_by_email(email)
+    user_data = users.get_user_by_id(userid)
 
     if not user_data:
-        st.error(f"User with email {email} not found in the database.")
+        st.error(f"User with username {userid} not found in the database.")
         st.write("Please log out and log in again.")
         if st.button("Logout", key="researcher_logout"):
             st.session_state["logged_in"] = False
             st.session_state["role"] = None
-            st.session_state["email"] = None
+            st.session_state["user"] = None
             st.rerun()
         return
 
     # Get user information
-    userid = user_data['UserID']
+    # userid = user_data['UserID']
     users_projects = projects.get_projects_by_researcher(userid)
 
     # # Get the projects where this researcher is the lead
@@ -222,7 +217,7 @@ def researcher_app(email, users, projects):
             password = st.text_input("Password", type="password")
             confirm_password = st.text_input("Confirm Password", type="password")
             server_url = "https://vox-populi.dev"
-
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             # Register button
             submit_button = st.form_submit_button("Register")
             if submit_button:
@@ -234,17 +229,22 @@ def researcher_app(email, users, projects):
                     # Run the registration process
                     with st.spinner("Registering user..."):
                         try:
-                            
                             # Create a WebMonitor instance with consistent server URL
                             server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
                             web_monitor = WebMonitor(
                                 username=username, 
-                                password=password,
+                                password=hashed_password,
                                 server_url=server_url
                             )
                             # Properly await the async register method
                             result = asyncio.run(web_monitor.register())
                             if result:
+                                users.add_user(
+                                    user_id=username, 
+                                    hashed_password=hashed_password, 
+                                    role="User", 
+                                    active=True
+                                )
                                 st.success(f"User {username} registered successfully!")
                                 st.info(f"When logging in, use server URL: {server_url}")
                             else:
