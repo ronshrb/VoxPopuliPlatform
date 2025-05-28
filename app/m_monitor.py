@@ -687,6 +687,48 @@ class MultiPlatformMessageMonitor:
         db.insert_one(record)
         print(f'Message {event_id} was recieved')
 
+    async def list_pending_invites(self):
+        """List all rooms (chats) waiting for approval (invites not yet accepted)."""
+        if not self.access_token:
+            print("Not logged in. Cannot list invites.")
+            return []
+
+        invites_url = f"{self.synapse_url}/_matrix/client/v3/sync"
+
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.get(
+                    invites_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    params={"timeout": 10000}  # 10 seconds timeout
+                )
+
+                if response.status_code != 200:
+                    print(f"Failed to fetch invites: {response.status_code} - {response.text}")
+                    return []
+
+                data = response.json()
+                rooms = data.get("rooms", {}).get("invite", {})
+
+                pending_invites = []
+                for room_id, room_data in rooms.items():
+                    room_name = None
+                    invite_state = room_data.get("invite_state", {}).get("events", [])
+                    for event in invite_state:
+                        if event.get("type") == "m.room.name":
+                            room_name = event.get("content", {}).get("name")
+                            break
+                    pending_invites.append({"room_id": room_id, "room_name": room_name})
+
+                print("Pending invites:")
+                for invite in pending_invites:
+                    print(f"  - {invite['room_id']} ({invite['room_name'] or 'Unnamed'})")
+
+                return pending_invites
+
+            except Exception as e:
+                print(f"Error while listing invites: {str(e)}")
+                return []
 
     async def accept_invites(self):
         """Automatically accept invites from the Signal bridge bot"""
@@ -733,6 +775,52 @@ class MultiPlatformMessageMonitor:
             except Exception as e:
                 print(f"Error while accepting invites: {str(e)}")
                 return False
+
+    async def list_joined_rooms(self):
+        """List all rooms (chats) you have already joined."""
+        if not self.access_token:
+            print("Not logged in. Cannot list joined rooms.")
+            return []
+
+        joined_rooms_url = f"{self.synapse_url}/_matrix/client/v3/joined_rooms"
+
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.get(
+                    joined_rooms_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"}
+                )
+
+                if response.status_code != 200:
+                    print(f"Failed to fetch joined rooms: {response.status_code} - {response.text}")
+                    return []
+
+                room_ids = response.json().get("joined_rooms", [])
+                joined_rooms = []
+
+                for room_id in room_ids:
+                    # Fetch room name
+                    name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
+                    name_resp = await client.get(
+                        name_url,
+                        headers={"Authorization": f"Bearer {self.access_token}"}
+                    )
+                    if name_resp.status_code == 200:
+                        room_name = name_resp.json().get("name")
+                    else:
+                        room_name = None
+                    joined_rooms.append({"room_id": room_id, "room_name": room_name})
+
+                print("Joined rooms:")
+                for room in joined_rooms:
+                    print(f"  - {room['room_id']} ({room['room_name'] or 'Unnamed'})")
+
+                return joined_rooms
+
+            except Exception as e:
+                print(f"Error while listing joined rooms: {str(e)}")
+                return []
+
 
     async def rejoin_signal_bot_room(self):
         """Rejoin the Signal bot's room if it is missing"""
@@ -849,6 +937,9 @@ async def main():
                         default=['whatsapp', 'signal'],
                         help="Platforms to monitor (default: whatsapp signal)")
     parser.add_argument("--register", action="store_true", help="Register a new user before logging in")
+    parser.add_argument("--list-invites", action="store_true", help="List pending invites and exit")
+    parser.add_argument("--list-joined", action="store_true", help="List joined rooms and exit")
+
 
     args = parser.parse_args()
 
@@ -885,9 +976,20 @@ async def main():
     print("\nMessaging Signal bot to reinitialize connection...")
     await monitor.message_signal_bot()
 
-    # Accept pending invites
-    print("\nAccepting pending invites...")
-    await monitor.accept_invites()
+    # # Accept pending invites
+    # print("\nAccepting pending invites...")
+    # await monitor.accept_invites()
+    if args.list_invites:
+            print("\nListing pending invites...")
+            invites = await monitor.list_pending_invites()
+            print(invites)
+            return
+    
+    if args.list_joined:
+        print("\nListing joined rooms...")
+        joined = await monitor.list_joined_rooms()
+        print(joined)
+        return
 
     # Find bridge rooms
     print("\nSearching for bridge rooms...")
