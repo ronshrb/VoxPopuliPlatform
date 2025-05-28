@@ -687,6 +687,7 @@ class MultiPlatformMessageMonitor:
         db.insert_one(record)
         print(f'Message {event_id} was recieved')
 
+
     async def accept_invites(self):
         """Automatically accept invites from the Signal bridge bot"""
         if not self.access_token:

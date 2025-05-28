@@ -127,3 +127,4 @@ class WebMonitor:
         except Exception as e:
             st.error(f"An error occurred during login: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
+

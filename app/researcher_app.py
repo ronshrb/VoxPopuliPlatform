@@ -233,7 +233,7 @@ def researcher_app(userid, users, projects):
                             server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
                             web_monitor = WebMonitor(
                                 username=username, 
-                                password=hashed_password,
+                                password=password,
                                 server_url=server_url
                             )
                             # Properly await the async register method

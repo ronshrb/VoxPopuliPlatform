@@ -117,6 +117,7 @@ if not st.session_state["logged_in"]:
                                 st.session_state["logged_in"] = True
                                 st.session_state["role"] = user_role
                                 st.session_state["user"] = user_data['UserID']
+                                st.session_state['password'] = password
                                 st.success("Login successful!")
                                 st.rerun()
                             else:
@@ -153,7 +154,7 @@ if not st.session_state["logged_in"]:
 else:
     # Redirect to the appropriate app based on role
     if st.session_state["role"] == "User":
-        user_app(st.session_state["user"], users, projects)
+        user_app(st.session_state["user"], users, projects, st.session_state['password'])
     elif st.session_state["role"] == "Researcher":
         researcher_app(st.session_state["user"], users, projects)
 
