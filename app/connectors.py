@@ -1,9 +1,9 @@
-
 from google.cloud.sql.connector import Connector
-from sqlalchemy import create_engine
-import os
+from sqlalchemy import create_engine, MetaData
+from sqlalchemy.orm import sessionmaker
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
@@ -42,4 +42,10 @@ class mongo_connector():
     def get_table(self, db_name, collection_name):
         return self.client[db_name][collection_name]
 
-        
+POSTGRES_URI = os.getenv("POSTGRES_URI")
+engine = create_engine(POSTGRES_URI)
+Session = sessionmaker(bind=engine)
+session = Session()
+metadata = MetaData()
+
+

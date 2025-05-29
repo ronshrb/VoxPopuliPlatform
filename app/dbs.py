@@ -1,14 +1,56 @@
-import sqlalchemy
-from google.cloud.sql.connector import Connector
-from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, create_engine, update
-from sqlalchemy.sql import insert, select
-from datetime import datetime, timedelta
-import os
+from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, select, insert, update, ForeignKey
+import pandas as pd
+from datetime import datetime
 import connectors
 import duckdb
-import pandas as pd
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
+# Remove SQLAlchemy/Postgres setup from here, import from connectors instead
+engine = connectors.engine
+Session = connectors.Session
+session = connectors.session
+metadata = connectors.metadata
 
+users_table = Table(
+            'users', metadata,
+            Column('userid', String, primary_key=True),
+            Column('hashedpassword', String),
+            Column('role', String),
+            Column('creator', String),
+            Column('active', Boolean),
+            Column('createdat', Date),
+            Column('lastupdate', Date)
+        )
+
+projects_table = Table(
+            'projects', metadata,
+            Column('projectid', String, primary_key=True),
+            Column('projectname', String),
+            Column('active', Boolean),
+            Column('createdat', Date),
+            Column('lastupdate', Date)
+        )
+
+chats_table = Table(
+            'chats', metadata,
+            Column('chatid', String, primary_key=True),
+            Column('chatname', String),
+            Column('platform', String),
+            Column('userid', String),
+            Column('active', Boolean),
+            Column('createdat', Date),
+            Column('updatedat', Date),
+            Column('lastupdate', Date)
+        )
+
+# metadata.create_all(engine)  # Uncomment to create tables if needed
+user_projects_table = Table(
+    'user_projects', metadata,
+    Column('userid', String, ForeignKey('users.userid', ondelete='CASCADE'), primary_key=True),
+    Column('projectid', String, ForeignKey('projects.projectid', ondelete='CASCADE'), primary_key=True)
+)
 # Mongo
 mongo_conn = connectors.mongo_connector()
 
@@ -67,148 +109,230 @@ class MessagesColl(MongoDBCollection):
         """
         return duckdb.query(q).to_df()
     
-class UsersColl(MongoDBCollection):
-
-    def __init__(self, db_name):
-        super().__init__(db_name, 'Users')
+class UsersTable:
+    def __init__(self):
+        self.users_table = users_table
+        self.user_projects_table = user_projects_table
 
     def add_user(self, user_id, hashed_password, creator_id, role='User', active=True):
-        user_data = {
-            "UserID": user_id,
-            'HashedPassword': hashed_password,
-            "Role": role,
-            "Creator": creator_id,
-            "Active": active,
-            "CreatedAt": datetime.now() 
-        }
-        self.collection.insert_one(user_data)
+        try:
+            stmt = insert(self.users_table).values(
+                userid=user_id,
+                hashedpassword=hashed_password,
+                role=role,
+                creator=creator_id,
+                active=active,
+                createdat=datetime.now()
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in add_user: {e}")
 
     def get_users(self):
-        return self.collection_df
-    
+        result = session.execute(select(self.users_table)).fetchall()
+        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+
     def get_user_by_id(self, user_id):
-        user = self.collection.find_one({"UserID": user_id})
-        return user if user else None
-    
+        try:
+            result = session.execute(
+                select(self.users_table).where(self.users_table.c.userid == user_id)
+            ).fetchone()
+            if result:
+                d = dict(result._mapping)
+                return {
+                    'UserID': d.get('userid'),
+                    'HashedPassword': d.get('hashedpassword'),
+                    'Role': d.get('role'),
+                    'Creator': d.get('creator'),
+                    'Active': d.get('active'),
+                    'CreatedAt': d.get('createdat'),
+                }
+            return None
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_user_by_id: {e}")
+            return None
+
     def get_user_by_email(self, email):
-        user = self.collection.find_one({"Email": email})
-        return user if user else None
-    
-    # def user_statistics_by_project(self, project_id):
-    #     # Register the DataFrame as a DuckDB table
-    #     duckdb.register("users_table", self.users_df)
-        
-    #     # Define the query
-    #     q = f"""
-    #     SELECT UserID, COUNT(DISTINCT ChatID) AS TotalChats
-    #     FROM users_table
-    #     LEFT JOIN messages ON users_table.UserID = messages.Userbridge_userID
-    #     WHERE ProjectID = '{project_id}'
-    #     GROUP BY UserID
-    #     """
+        # If you have an Email column, implement this
+        return None
 
-    #     return duckdb.query(q).to_df()
-    
+class ProjectsTable:
+    def __init__(self):
+        self.projects_table = projects_table
+        self.user_projects_table = user_projects_table
 
-class ProjectsColl(MongoDBCollection):
-    def __init__(self, db_name):
-        super().__init__(db_name, 'Projects')
-
-    def add_project(self, project_id, desc, researchers, active=True):
-        project_data = {
-            "ProjectID": project_id,
-            "ProjectName": desc,
-            'Researchers': researchers,
-            "Users": [],
-            "Active": active,
-            "CreatedAt": datetime.now()
-        }
-        self.collection.insert_one(project_data)
+    def add_project(self, project_id, desc, researchers=None, active=True):
+        try:
+            stmt = insert(self.projects_table).values(
+                projectid=project_id,
+                projectname=desc,
+                active=active,
+                createdat=datetime.now()
+            )
+            session.execute(stmt)
+            session.commit()
+            # Add researchers to user_projects association table
+            if researchers:
+                for researcher_id in researchers:
+                    self.add_researcher(project_id, researcher_id)
+        except Exception as e:
+            session.rollback()
+            print(f"Error in add_project: {e}")
 
     def add_researcher(self, project_id, researcher_id):
-        project = self.collection.find_one({"ProjectID": project_id})
-        if project:
-            researchers = project.get('Researchers', [])
-            if researcher_id not in researchers:
-                researchers.append(researcher_id)
-                self.collection.update_one({"ProjectID": project_id}, {"$set": {"Researchers": researchers}})
-    
+        try:
+            stmt = insert(self.user_projects_table).values(
+                userid=researcher_id,
+                projectid=project_id
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            if 'duplicate key' not in str(e):
+                print(f"Error in add_researcher: {e}")
+
     def remove_researcher(self, project_id, researcher_id):
-        project = self.collection.find_one({"ProjectID": project_id})
-        if project:
-            researchers = project.get('Researchers', [])
-            if researcher_id in researchers:
-                researchers.remove(researcher_id)
-                self.collection.update_one({"ProjectID": project_id}, {"$set": {"Researchers": researchers}})
-    
+        try:
+            from sqlalchemy import delete
+            stmt = delete(self.user_projects_table).where(
+                (self.user_projects_table.c.userid == researcher_id) &
+                (self.user_projects_table.c.projectid == project_id)
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in remove_researcher: {e}")
+
     def add_user(self, project_id, user_id):
-        project = self.collection.find_one({"ProjectID": project_id})
-        if project:
-            users = project.get('Users', [])
-            if user_id not in users:
-                users.append(user_id)
-                self.collection.update_one({"ProjectID": project_id}, {"$set": {"Users": users}})
+        try:
+            project = self.get_project_by_id(project_id)
+            if project:
+                users = project.get('users', '').split(',') if project.get('users') else []
+                if user_id not in users:
+                    users.append(user_id)
+                    stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
+                    session.execute(stmt)
+                    session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in add_user to project: {e}")
 
     def remove_user(self, project_id, user_id):
-        project = self.collection.find_one({"ProjectID": project_id})
-        if project:
-            users = project.get('Users', [])
-            if user_id in users:
-                users.remove(user_id)
-                self.collection.update_one({"ProjectID": project_id}, {"$set": {"Users": users}})
+        try:
+            project = self.get_project_by_id(project_id)
+            if project:
+                users = project.get('users', '').split(',') if project.get('users') else []
+                if user_id in users:
+                    users.remove(user_id)
+                    stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
+                    session.execute(stmt)
+                    session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in remove_user from project: {e}")
 
-    def get_users(self):
-        users = self.users.find()
-        return pd.DataFrame(list(users))
+    def get_projects(self):
+        result = session.execute(select(self.projects_table)).fetchall()
+        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
 
     def get_project_researchers(self, project_id):
-        project = self.collection.find_one({"ProjectID": project_id})
-        if project:
-            return project.get('Researchers', [])
-        return []
-    
+        # Return list of researcher IDs for a project from user_projects table
+        try:
+            result = session.execute(
+                select(self.user_projects_table.c.userid).where(self.user_projects_table.c.projectid == project_id)
+            ).fetchall()
+            return [row[0] for row in result] if result else []
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_project_researchers: {e}")
+            return []
+
     def get_projects_by_researcher(self, researcher_id):
-        projects = self.collection.find({"Researchers": {"$in": [researcher_id]}}, {"ProjectID": 1, "_id": 0})
-        return projects
-    
-    def get_project_by_researcher_df(self, researcher_id):
-        projects = self.get_project_researchers(researcher_id)
-        return pd.DataFrame(list(projects))
-    
+        # Return list of projects for a given researcher from user_projects table
+        try:
+            # Get all project IDs for this researcher
+            result = session.execute(
+                select(self.user_projects_table.c.projectid).where(self.user_projects_table.c.userid == researcher_id)
+            ).fetchall()
+            project_ids = [row[0] for row in result] if result else []
+            if not project_ids:
+                return []
+            # Now fetch project details for these IDs
+            result = session.execute(
+                select(self.projects_table).where(self.projects_table.c.projectid.in_(project_ids))
+            ).fetchall()
+            # Return PascalCase keys for app compatibility
+            return [
+                {
+                    'ProjectID': row._mapping['projectid'],
+                    'ProjectName': row._mapping['projectname'],
+                    'Active': row._mapping['active'],
+                    'CreatedAt': row._mapping['createdat'],
+                    # Add more fields if needed
+                }
+                for row in result
+            ] if result else []
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_projects_by_researcher: {e}")
+            return []
+
     def get_project_by_id(self, project_id):
-        project = self.collection.find_one({"ProjectID": project_id})
-        return project if project else None
-    
-    def get_project_by_id_df(self, project_id):
-        project = self.get_project_by_id(project_id)
-        return pd.DataFrame(list(project)) if project else None
-    
-    def get_projects(self):
-        return self.collection_df
+        result = session.execute(select(self.projects_table).where(self.projects_table.c.projectid == project_id)).fetchone()
+        if result:
+            d = dict(result._mapping)
+            return {
+                'ProjectID': d.get('projectid'),
+                'ProjectName': d.get('projectname'),
+                'Users': d.get('users'),
+                'Active': d.get('active'),
+                'CreatedAt': d.get('createdat'),
+            }
+        return None
 
+class ChatsTable:
+    def __init__(self):
+        self.chats_table = chats_table
 
-class ChatsColl(MongoDBCollection):
-    def __init__(self, db_name):
-        super().__init__(db_name, 'Chats')
-
-    def add_chat(self, chat_id, chat_name, platform, user_id, donated=False):
-        chat_data = {
-            "ChatID": chat_id,
-            "Chat Name": chat_name,
-            "Platform": platform,
-            "UserID": user_id,
-            "CreatedAt": datetime.now(),
-            "UpdatedAt": datetime.now(),
-            "Donated": donated
-
-        }
-        self.collection.insert_one(chat_data)
+    def add_chat(self, chat_id, chat_name, platform, user_id, active=False):
+        try:
+            stmt = insert(self.chats_table).values(
+                chatid=chat_id,
+                chatname=chat_name,
+                platform=platform,
+                userid=user_id,
+                createdat=datetime.now(),
+                updatedat=datetime.now(),
+                active=active
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in add_chat: {e}")
 
     def update_chat_name(self, chat_id, chat_name):
-        self.collection.update_one({"ChatID": chat_id}, {"$set": {"Chat Name": chat_name, "UpdatedAt": datetime.now()}})
+        try:
+            stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(chatname=chat_name, updatedat=datetime.now())
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in update_chat_name: {e}")
 
-    def update_chat_donation(self, chat_id, donated):
-        self.collection.update_one({"ChatID": chat_id}, {"$set": {"Donated": donated, "UpdatedAt": datetime.now()}})
+    def update_chat_donation(self, chat_id, active):
+        try:
+            stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(active=active, updatedat=datetime.now())
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in update_chat_donation: {e}")
 
     def update_collection(self, chats_dict):
         for chat in chats_dict:
@@ -216,22 +340,71 @@ class ChatsColl(MongoDBCollection):
             chat_name = chat.get("Chat Name")
             platform = chat.get("Platform")
             user_id = chat.get("UserID")
-            donated = chat.get("Donated")
-            
+            active = chat.get("Active")
             if chat_id:
-                self.add_chat(chat_id, chat_name, platform, user_id, donated)
+                self.add_chat(chat_id, chat_name, platform, user_id, active)
             else:
                 self.update_chat_name(chat_id, chat_name)
-                # self.update_chat_donation(chat_id, donated)
+                # self.update_chat_donation(chat_id, active)
 
     def get_chats(self):
-        return self.get_collection_df()
-    
+        result = session.execute(select(self.chats_table)).fetchall()
+        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+
     def get_chat_by_id(self, chat_id):
-        chat = self.collection.find_one({"ChatID": chat_id})
-        return chat if chat else None
-    
+        result = session.execute(select(self.chats_table).where(self.chats_table.c.chatid == chat_id)).fetchone()
+        if result:
+            d = dict(result._mapping)
+            return {
+                'ChatID': d.get('chatid'),
+                'Chat Name': d.get('chatname'),
+                'Platform': d.get('platform'),
+                'UserID': d.get('userid'),
+                'CreatedAt': d.get('createdat'),
+                'UpdatedAt': d.get('updatedat'),
+                'Active': d.get('active'),
+            }
+        return None
+
     def get_chat_by_user(self, user_id):
-        chat = self.collection.find_one({"UserID": user_id})
-        return chat if chat else None
-    
+        result = session.execute(select(self.chats_table).where(self.chats_table.c.userid == user_id)).fetchall()
+        return [dict(row._mapping) for row in result] if result else []
+
+class UserProjectsTable:
+    def __init__(self):
+        self.user_projects_table = user_projects_table
+
+    def add_user_project(self, user_id, project_id):
+        stmt = insert(self.user_projects_table).values(
+            userid=user_id,
+            projectid=project_id
+        )
+        session.execute(stmt)
+        session.commit()
+
+    def remove_user_project(self, user_id, project_id):
+        from sqlalchemy import delete
+        stmt = delete(self.user_projects_table).where(
+            (self.user_projects_table.c.userid == user_id) &
+            (self.user_projects_table.c.projectid == project_id)
+        )
+        session.execute(stmt)
+        session.commit()
+
+    def get_user_projects(self, user_id):
+        result = session.execute(
+            select(self.user_projects_table).where(self.user_projects_table.c.userid == user_id)
+        ).fetchall()
+        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+
+    def add_user_to_project(self, user_id, project_id):
+        try:
+            stmt = insert(self.user_projects_table).values(
+                userid=user_id,
+                projectid=project_id
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in add_user_to_project: {e}")

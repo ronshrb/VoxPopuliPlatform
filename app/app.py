@@ -55,9 +55,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 db_name = "VoxPopuli" # change to your database name
-users = dbs.UsersColl(db_name)
-projects = dbs.ProjectsColl(db_name)
-chats = dbs.ChatsColl(db_name)
+# Use new table-based classes from dbs.py
+users = dbs.UsersTable()
+projects = dbs.ProjectsTable()
+chats = dbs.ChatsTable()
+user_projects = dbs.UserProjectsTable()
 
 # Initialize session state for login
 if "logged_in" not in st.session_state:
@@ -156,7 +158,7 @@ else:
     if st.session_state["role"] == "User":
         user_app(st.session_state["user"], users, projects, chats, st.session_state['password'])
     elif st.session_state["role"] == "Researcher":
-        researcher_app(st.session_state["user"], users, projects)
+        researcher_app(st.session_state["user"], users, projects, user_projects)
 
     # Optional logout button in sidebar
     if st.sidebar.button("Logout", key="main_logout"):

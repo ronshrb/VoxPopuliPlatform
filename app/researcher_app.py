@@ -103,7 +103,7 @@ def get_researcher_projects(researcher_id):
 
 
 
-def researcher_app(userid, users, projects):
+def researcher_app(userid, users, projects, user_projects):
     """Main function for the Researcher Dashboard."""
     # Find user by email
     user_data = users.get_user_by_id(userid)
@@ -243,8 +243,12 @@ def researcher_app(userid, users, projects):
                                     user_id=username, 
                                     hashed_password=hashed_password,
                                     creator_id=userid, 
-                                    role="User", 
-                                    active=True
+                                    role="User",
+                                    active=True,
+                                )
+                                user_projects.add_user_to_project(
+                                    user_id=username, 
+                                    project_id=selected_project_id
                                 )
                                 st.success(f"User {username} registered successfully!")
                                 st.info(f"When logging in, use server URL: {server_url}")
