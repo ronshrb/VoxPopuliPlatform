@@ -47,20 +47,20 @@ def user_app(userid, users, projects, password):
     st.sidebar.success(f"Welcome, {userid}!")
 
     # Sidebar QR Code with 7-minute cooldown
-    cooldown_seconds = 7 * 60  # 5 minutes
+    cooldown_seconds = 7 * 60  # 7 minutes
     now = time.time()
-    last_qr_time = st.session_state.get("last_qr_time", 0)
+    platform_options = ["signal", "whatsapp", "telegram"]
+    selected_platform = st.sidebar.selectbox("Choose platform for QR code", platform_options, key="qr_platform")
+    cooldown_key = f"last_qr_time_{userid}_{selected_platform}"
+    last_qr_time = st.session_state.get(cooldown_key, 0)
     cooldown_remaining = int(cooldown_seconds - (now - last_qr_time))
 
     if st.sidebar.button("Generate QR Code"):
         if cooldown_remaining > 0:
             st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")
         else:
-            # Use st.session_state to persist WebMonitor instance
             if "web_monitor" not in st.session_state:
-                # Create and login only if not already in session_state
                 web_monitor = WebMonitor(username=userid, password=password)
-                # Perform login and store the instance if successful
                 try:
                     login_result = asyncio.run(web_monitor.login())
                     if login_result.get("status") == "success":
@@ -74,22 +74,21 @@ def user_app(userid, users, projects, password):
             else:
                 web_monitor = st.session_state["web_monitor"]
 
-            # Call the generate_qr_code_and_display function with spinner
             try:
                 with st.sidebar:
-                    st.spinner("Generating QR Code...")
-                    qr_code = asyncio.run(web_monitor.generate_qr_code_and_display())
-                # st.sidebar.image(qr_code, caption="Generated QR Code", use_container_width=True)
-                st.sidebar.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
-                st.session_state["last_qr_time"] = time.time()  # Set cooldown
+                    st.spinner(f"Generating QR Code for {selected_platform}...")
+                    qr_code = asyncio.run(web_monitor.generate_qr_code_and_display(platform=selected_platform))
+                    st.sidebar.image(qr_code, caption="Generated QR Code", use_container_width=True)
+                    st.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
+                st.session_state[cooldown_key] = time.time()  # Set cooldown for this user+platform
                 st.session_state["last_qr_code"] = qr_code      # Store QR code
             except Exception as e:
-                # st.sidebar.error(f"Failed to generate QR code: {str(e)}")
                 pass 
     # Always show the last QR code if it exists
-    if "last_qr_code" in st.session_state and st.session_state["last_qr_code"] is not None:
-        st.sidebar.image(st.session_state["last_qr_code"], caption="Generated QR Code", use_container_width=True)
-        st.sidebar.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
+    # if "last_qr_code" in st.session_state and st.session_state["last_qr_code"] is not None:
+    #     print(st.session_state["last_qr_code"])
+    #     st.sidebar.image(st.session_state["last_qr_code"], caption="Generated QR Code", use_container_width=True)
+    #     st.sidebar.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
     # Show cooldown info if needed
     # if cooldown_remaining > 0:
     #     st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")

@@ -51,11 +51,12 @@ class UsersColl:
         self.users = mongo_conn.get_table(db_name, 'Users')
         self.users_df = pd.DataFrame(list(self.users.find()))
 
-    def add_user(self, user_id, hashed_password, role='User', active=True):
+    def add_user(self, user_id, hashed_password, creator_id, role='User', active=True):
         user_data = {
             "UserID": user_id,
             'HashedPassword': hashed_password,
             "Role": role,
+            "Creator": creator_id,
             "Active": active,
             "CreatedAt": datetime.now() 
         }

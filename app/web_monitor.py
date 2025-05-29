@@ -79,23 +79,18 @@ class WebMonitor:
         else:
             return {"status": "error", "message": "Failed to start monitoring messages."}
 
-    async def generate_qr_code_and_display(self):
-        """Generate a QR code and display it in the web app."""
+    async def generate_qr_code_and_display(self, platform='whatsapp'):
+        """Generate a QR code for the selected platform and display it in the web app."""
         try:
-            # Call the generate_qr method from MultiPlatformMessageMonitor
-            qr_image = await self.monitor.generate_qr()
+            qr_image = await self.monitor.generate_qr(platform=platform)
             if qr_image:
-                # Display the QR code in the web app
                 buffer = BytesIO()
                 qr_image.save(buffer, format="PNG")
                 buffer.seek(0)
-
-                # st.image(buffer, caption="Generated QR Code", use_column_width=True)
                 return buffer
-                # return {"status": "success", "message": "QR code displayed successfully."}
             else:
-                st.error("Failed to generate QR code.")
-                return {"status": "error", "message": "Failed to generate QR code."}
+                st.error(f"Failed to generate QR code for {platform}.")
+                return {"status": "error", "message": f"Failed to generate QR code for {platform}."}
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}

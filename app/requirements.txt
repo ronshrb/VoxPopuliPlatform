@@ -41,3 +41,4 @@ datetime
 sqlalchemy
 pymongo
 python-dotenv
+duckdb

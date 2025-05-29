@@ -241,7 +241,8 @@ def researcher_app(userid, users, projects):
                             if result:
                                 users.add_user(
                                     user_id=username, 
-                                    hashed_password=hashed_password, 
+                                    hashed_password=hashed_password,
+                                    creator_id=userid, 
                                     role="User", 
                                     active=True
                                 )

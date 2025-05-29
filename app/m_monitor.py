@@ -12,6 +12,10 @@ import re
 from typing import Dict, List, Optional
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from io import BytesIO
+import qrcode
+
+# from matrix import m_monitor
 
 load_dotenv()
 
@@ -484,23 +488,62 @@ class MultiPlatformMessageMonitor:
             print(
                 f"[{time_str}] [{platform}] [{room_name}] {display_name} sent a {msgtype} message: {content.get('body', 'Message')}")
 
-    async def generate_qr(self):
-        """Send a message to the Signal bot to create a room, then retrieve and return the QR code."""
+    async def generate_qr(self, platform='whatsapp'):
+        """Send a message to the bridge bot (Signal, WhatsApp, Telegram) to create a room, then retrieve and return the QR code. If a direct chat with the bot exists, leave it first."""
         if not self.access_token:
             print("Not logged in. Cannot generate QR code.")
             return None
 
+        # Select bot MXID and login command based on platform
+        if platform == 'signal':
+            bot_mxid = SIGNAL_BOT_MXID
+            login_command = "login qr"
+            qr_prefix = "sgnl://"
+        elif platform == 'whatsapp':
+            bot_mxid = WHATSAPP_BOT_MXID
+            login_command = "login qr"
+            qr_prefix = "whatsapp://"
+        elif platform == 'telegram':
+            bot_mxid = TELEGRAM_BOT_MXID
+            login_command = "/login"
+            qr_prefix = "tg://"
+        else:
+            print(f"Unsupported platform: {platform}")
+            return None
+
         create_room_url = f"{self.synapse_url}/_matrix/client/v3/createRoom"
         message_url_template = f"{self.synapse_url}/_matrix/client/v3/rooms/{{room_id}}/send/m.room.message"
-
+        # Step 0: Check for existing direct chat with the bot and leave it
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            joined_rooms_url = f"{self.synapse_url}/_matrix/client/v3/joined_rooms"
+            response = await client.get(
+                joined_rooms_url,
+                headers={"Authorization": f"Bearer {self.access_token}"}
+            )
+            if response.status_code == 200:
+                room_ids = response.json().get("joined_rooms", [])
+                for room_id in room_ids:
+                    member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{bot_mxid}"
+                    member_resp = await client.get(
+                        member_url,
+                        headers={"Authorization": f"Bearer {self.access_token}"}
+                    )
+                    if member_resp.status_code == 200:
+                        state_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.create"
+                        state_resp = await client.get(
+                            state_url,
+                            headers={"Authorization": f"Bearer {self.access_token}"}
+                        )
+                        if state_resp.status_code == 200 and state_resp.json().get("is_direct", False):
+                            print(f"Leaving existing direct chat with {platform} bot: {room_id}")
+                            await self._leave_room(client, room_id)
             room_id = None
             try:
-                # Step 1: Create a direct chat with the Signal bot
-                print(f"Creating a direct chat with the Signal bot: {SIGNAL_BOT_MXID}")
+                # Step 1: Create a direct chat with the bot
+                print(f"Creating a direct chat with the {platform} bot: {bot_mxid}")
                 create_room_payload = {
                     "is_direct": True,
-                    "invite": [SIGNAL_BOT_MXID],
+                    "invite": [bot_mxid],
                     "preset": "trusted_private_chat"
                 }
                 create_room_response = await client.post(
@@ -514,10 +557,10 @@ class MultiPlatformMessageMonitor:
                     return None
 
                 room_id = create_room_response.json().get("room_id")
-                print(f"Direct chat created with Signal bot. Room ID: {room_id}")
+                print(f"Direct chat created with {platform} bot. Room ID: {room_id}")
 
-                # Step 2: Send the starting message to the Signal bot
-                print("Requesting QR code from the Signal bot...")
+                # Step 2: Send the starting message to the bot
+                print(f"Requesting QR code from the {platform} bot...")
                 message_url = message_url_template.format(room_id=room_id)
                 login_message_payload = {
                     "msgtype": "m.text",
@@ -530,18 +573,17 @@ class MultiPlatformMessageMonitor:
                 )
 
                 if login_message_response.status_code != 200:
-                    print(f"Failed to send 'login qr' message: {login_message_response.status_code} - {login_message_response.text}")
+                    print(f"Failed to send initial message: {login_message_response.status_code} - {login_message_response.text}")
                     return None
                 
                 print("Waiting for the bot to respond...")
                 await asyncio.sleep(5)  
 
-                # Step 3: Send the 'login qr' message to the Signal bot
-                print("Requesting QR code from the Signal bot...")
-                message_url = message_url_template.format(room_id=room_id)
+                # Step 3: Send the login command to the bot
+                print(f"Sending '{login_command}' to the {platform} bot...")
                 login_message_payload = {
                     "msgtype": "m.text",
-                    "body": "login qr"
+                    "body": login_command
                 }
                 login_message_response = await client.post(
                     message_url,
@@ -550,7 +592,7 @@ class MultiPlatformMessageMonitor:
                 )
 
                 if login_message_response.status_code != 200:
-                    print(f"Failed to send 'login qr' message: {login_message_response.status_code} - {login_message_response.text}")
+                    print(f"Failed to send '{login_command}' message: {login_message_response.status_code} - {login_message_response.text}")
                     return None
 
                 print("Waiting for QR code message...")
@@ -563,7 +605,7 @@ class MultiPlatformMessageMonitor:
                     headers={"Authorization": f"Bearer {self.access_token}"},
                     params={"limit": 10, "dir": "b"}  # Fetch the last 10 messages
                 )
-
+                print("retriving for QR code message...")
                 if response.status_code != 200:
                     print(f"Failed to fetch room messages: {response.status_code} - {response.text}")
                     return None
@@ -573,20 +615,34 @@ class MultiPlatformMessageMonitor:
                     content = event.get("content", {})
                     msgtype = content.get("msgtype")
                     sender = event.get("sender", "")
+                    body = content.get("body", "")
 
-                    if sender == SIGNAL_BOT_MXID and msgtype == "m.image" and content.get("body", "").startswith("sgnl://"):
-                        # Generate the QR code from the body content
-                        qr_link = content.get("body")
+                    # WhatsApp: If the body looks like a QR payload (3-4 base64 segments separated by commas), use it directly
+                    if (
+                        platform == 'whatsapp' and
+                        sender == bot_mxid and
+                        msgtype == "m.image"
+                        # re.match(r"^[A-Za-z0-9+/=]+,[A-Za-z0-9+/=]+,[A-Za-z0-9+/=]+(,[A-Za-z0-9+/=]+)?$", body.strip())
+                    ):
                         try:
-                            from io import BytesIO
-                            import qrcode
+                            qr = qrcode.QRCode()
+                            qr.add_data(body.strip())
+                            qr.make(fit=True)
+                            img = qr.make_image(fill="black", back_color="white")
+                            print("WhatsApp QR code generated from string payload.")
+                            return img
+                        except Exception as e:
+                            print(f"Failed to generate WhatsApp QR code from string: {str(e)}")
+                            return None
 
-                            # Generate QR code
+                    # Signal/Telegram: QR is a link in the body
+                    if sender == bot_mxid and msgtype == "m.image":
+                        qr_link = body
+                        try:
                             qr = qrcode.QRCode()
                             qr.add_data(qr_link)
                             qr.make(fit=True)
                             img = qr.make_image(fill="black", back_color="white")
-
                             print("QR code successfully generated.")
                             return img
                         except Exception as e:
@@ -600,7 +656,6 @@ class MultiPlatformMessageMonitor:
                 print(f"Error during QR code generation: {str(e)}")
                 return None
             finally:
-                # Always leave the room if it was created
                 if room_id:
                     await self._leave_room(client, room_id)
     async def _leave_room(self, client, room_id):
@@ -687,8 +742,8 @@ class MultiPlatformMessageMonitor:
         db.insert_one(record)
         print(f'Message {event_id} was recieved')
 
-    async def list_pending_invites(self):
-        """List all rooms (chats) waiting for approval (invites not yet accepted)."""
+    async def list_pending_invites(self, group=True):
+        """List all rooms (chats) waiting for approval (invites not yet accepted). If group=True, return only group rooms. Adds platform info."""
         if not self.access_token:
             print("Not logged in. Cannot list invites.")
             return []
@@ -718,11 +773,27 @@ class MultiPlatformMessageMonitor:
                         if event.get("type") == "m.room.name":
                             room_name = event.get("content", {}).get("name")
                             break
-                    pending_invites.append({"room_id": room_id, "room_name": room_name})
+                    # Try to determine platform
+                    platform = None
+                    for plat, config in self.bridge_configs.items():
+                        member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
+                        member_resp = await client.get(
+                            member_url,
+                            headers={"Authorization": f"Bearer {self.access_token}"}
+                        )
+                        if member_resp.status_code == 200:
+                            platform = plat
+                            break
+                    # Check group filter
+                    if group:
+                        is_group = await self.is_group_room(room_name)
+                        if not is_group:
+                            continue
+                    pending_invites.append({"room_id": room_id, "room_name": room_name, "platform": platform})
 
                 print("Pending invites:")
                 for invite in pending_invites:
-                    print(f"  - {invite['room_id']} ({invite['room_name'] or 'Unnamed'})")
+                    print(f"  - {invite['room_id']} ({invite['room_name'] or 'Unnamed'}) [platform: {invite['platform'] or 'unknown'}]")
 
                 return pending_invites
 
@@ -730,54 +801,8 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while listing invites: {str(e)}")
                 return []
 
-    async def accept_invites(self):
-        """Automatically accept invites from the Signal bridge bot"""
-        if not self.access_token:
-            print("Not logged in. Cannot accept invites.")
-            return False
-
-        invites_url = f"{self.synapse_url}/_matrix/client/v3/sync"
-
-        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
-            try:
-                print(f"Checking for pending invites at {invites_url}")
-                response = await client.get(
-                    invites_url,
-                    headers={"Authorization": f"Bearer {self.access_token}"},
-                    params={"timeout": 10000}  # 10 seconds timeout
-                )
-
-                if response.status_code != 200:
-                    print(f"Failed to fetch invites: {response.status_code} - {response.text}")
-                    return False
-
-                data = response.json()
-                rooms = data.get("rooms", {}).get("invite", {})
-
-                for room_id, room_data in rooms.items():
-                    # Check if the invite is from the Signal bridge bot
-                    invite_state = room_data.get("invite_state", {}).get("events", [])
-                    for event in invite_state:
-                        if event.get("type") == "m.room.member" and event.get("sender") == SIGNAL_BOT_MXID:
-                            print(f"Accepting invite to room {room_id} from Signal bot")
-                            join_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/join"
-                            join_response = await client.post(
-                                join_url,
-                                headers={"Authorization": f"Bearer {self.access_token}"}
-                            )
-                            if join_response.status_code == 200:
-                                print(f"Successfully joined room {room_id}")
-                            else:
-                                print(f"Failed to join room {room_id}: {join_response.status_code} - {join_response.text}")
-
-                return True
-
-            except Exception as e:
-                print(f"Error while accepting invites: {str(e)}")
-                return False
-
-    async def list_joined_rooms(self):
-        """List all rooms (chats) you have already joined."""
+    async def list_joined_rooms(self, group=True):
+        """List all rooms (chats) you have already joined. If group=True, return only group rooms. Adds platform info."""
         if not self.access_token:
             print("Not logged in. Cannot list joined rooms.")
             return []
@@ -809,11 +834,27 @@ class MultiPlatformMessageMonitor:
                         room_name = name_resp.json().get("name")
                     else:
                         room_name = None
-                    joined_rooms.append({"room_id": room_id, "room_name": room_name})
+                    # Try to determine platform
+                    platform = None
+                    for plat, config in self.bridge_configs.items():
+                        member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
+                        member_resp = await client.get(
+                            member_url,
+                            headers={"Authorization": f"Bearer {self.access_token}"}
+                        )
+                        if member_resp.status_code == 200:
+                            platform = plat
+                            break
+                    # Check group filter
+                    if group:
+                        is_group = await self.is_group_room(room_name)
+                        if not is_group:
+                            continue
+                    joined_rooms.append({"room_id": room_id, "room_name": room_name, "platform": platform})
 
                 print("Joined rooms:")
                 for room in joined_rooms:
-                    print(f"  - {room['room_id']} ({room['room_name'] or 'Unnamed'})")
+                    print(f"  - {room['room_id']} ({room['room_name'] or 'Unnamed'}) [platform: {room['platform'] or 'unknown'}]")
 
                 return joined_rooms
 
@@ -852,10 +893,28 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while rejoining Signal bot room: {str(e)}")
                 return False
 
-    async def message_signal_bot(self):
-        """Send a direct message to the Signal bot, wait 10 seconds, and then send 'login qr'"""
+
+    async def message_bridge_bot(self, platform):
+        """Send a direct message to the bridge bot (Signal, WhatsApp, or Telegram), wait 10 seconds, then send 'login qr' or equivalent."""
         if not self.access_token:
-            print("Not logged in. Cannot message Signal bot.")
+            print(f"Not logged in. Cannot message {platform} bot.")
+            return False
+
+        # Select bot MXID and greeting based on platform
+        if platform == 'signal':
+            bot_mxid = SIGNAL_BOT_MXID
+            greeting = "Hello, Signal bot!"
+            login_command = "login qr"
+        elif platform == 'whatsapp':
+            bot_mxid = WHATSAPP_BOT_MXID
+            greeting = "Hello, WhatsApp bot!"
+            login_command = "login qr"
+        elif platform == 'telegram':
+            bot_mxid = TELEGRAM_BOT_MXID
+            greeting = "Hello, Telegram bot!"
+            login_command = "/login"  # Telegram bridges often use /login
+        else:
+            print(f"Unsupported platform: {platform}")
             return False
 
         create_room_url = f"{self.synapse_url}/_matrix/client/v3/createRoom"
@@ -863,11 +922,11 @@ class MultiPlatformMessageMonitor:
 
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             try:
-                # Step 1: Create a direct chat with the Signal bot
-                print(f"Creating a direct chat with the Signal bot: {SIGNAL_BOT_MXID}")
+                # Step 1: Create a direct chat with the bridge bot
+                print(f"Creating a direct chat with the {platform} bot: {bot_mxid}")
                 create_room_payload = {
                     "is_direct": True,
-                    "invite": [SIGNAL_BOT_MXID],
+                    "invite": [bot_mxid],
                     "preset": "trusted_private_chat"
                 }
                 create_room_response = await client.post(
@@ -881,14 +940,14 @@ class MultiPlatformMessageMonitor:
                     return False
 
                 room_id = create_room_response.json().get("room_id")
-                print(f"Direct chat created with Signal bot. Room ID: {room_id}")
+                print(f"Direct chat created with {platform} bot. Room ID: {room_id}")
 
-                # Step 2: Send an initial message to the Signal bot
-                print("Sending initial message to the Signal bot...")
+                # Step 2: Send an initial message to the bot
+                print(f"Sending initial message to the {platform} bot...")
                 message_url = message_url_template.format(room_id=room_id)
                 initial_message_payload = {
                     "msgtype": "m.text",
-                    "body": "Hello, Signal bot!"
+                    "body": greeting
                 }
                 initial_message_response = await client.post(
                     message_url,
@@ -897,17 +956,17 @@ class MultiPlatformMessageMonitor:
                 )
 
                 if initial_message_response.status_code != 200:
-                    print(f"Failed to send initial message to Signal bot: {initial_message_response.status_code} - {initial_message_response.text}")
+                    print(f"Failed to send initial message to {platform} bot: {initial_message_response.status_code} - {initial_message_response.text}")
                     return False
 
                 print("Initial message sent. Waiting for 10 seconds...")
                 await asyncio.sleep(10)  # Wait for 10 seconds
 
-                # Step 3: Send the 'login qr' message to the Signal bot
-                print("Sending 'login qr' to the Signal bot...")
+                # Step 3: Send the login command to the bot
+                print(f"Sending '{login_command}' to the {platform} bot...")
                 login_message_payload = {
                     "msgtype": "m.text",
-                    "body": "login qr"
+                    "body": login_command
                 }
                 login_message_response = await client.post(
                     message_url,
@@ -916,15 +975,63 @@ class MultiPlatformMessageMonitor:
                 )
 
                 if login_message_response.status_code == 200:
-                    print("Message 'login qr' sent to Signal bot successfully.")
+                    print(f"Message '{login_command}' sent to {platform} bot successfully.")
                     return True
                 else:
-                    print(f"Failed to send 'login qr' to Signal bot: {login_message_response.status_code} - {login_message_response.text}")
+                    print(f"Failed to send '{login_command}' to {platform} bot: {login_message_response.status_code} - {login_message_response.text}")
                     return False
 
             except Exception as e:
-                print(f"Error while messaging Signal bot: {str(e)}")
+                print(f"Error while messaging {platform} bot: {str(e)}")
                 return False
+
+    async def is_group_room(self, room_name):
+        """Check if a room is a group (not a direct chat). Returns True if group, False if direct chat.
+        Uses platform-specific heuristics for Signal and WhatsApp."""
+        try:
+            # # Try to get the room name
+            # name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
+            # name_resp = await client.get(
+            #     name_url,
+            #     headers={"Authorization": f"Bearer {self.access_token}"}
+            # )
+            # room_name = None
+            # if name_resp.status_code == 200:
+            #     room_name = name_resp.json().get("name")
+
+            # # Try to determine platform
+            # platform = None
+            # for plat, config in self.bridge_configs.items():
+            #     member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
+            #     member_resp = await client.get(
+            #         member_url,
+            #         headers={"Authorization": f"Bearer {self.access_token}"}
+            #     )
+            #     if member_resp.status_code == 200:
+            #         platform = plat
+            #         break
+            # If room_name is None, assume it's a private chat
+            # wa_pattern = r"(?:\+?\d{7,15} \(WA\)|WhatsApp \(\+?\d{7,15}\))"
+            if not room_name or room_name.strip() == "": # all and signal
+                return False
+            elif '(WA)' in room_name or 'WhatsApp' in room_name: # whatsapp
+                return False
+            else:
+                return True
+            # # Fallback to old logic
+            # state_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.create"
+            # response = await client.get(
+            #     state_url,
+            #     headers={"Authorization": f"Bearer {self.access_token}"}
+            # )
+            # if response.status_code == 200:
+            #     content = response.json()
+            #     return not content.get("is_direct", False)
+            # else:
+            #     return True
+        except Exception as e:
+            print(f"Error checking if room {room_name} is group: {str(e)}")
+            return True
 
 async def main():
     parser = argparse.ArgumentParser(
@@ -939,6 +1046,9 @@ async def main():
     parser.add_argument("--register", action="store_true", help="Register a new user before logging in")
     parser.add_argument("--list-invites", action="store_true", help="List pending invites and exit")
     parser.add_argument("--list-joined", action="store_true", help="List joined rooms and exit")
+    parser.add_argument("--qr",
+                        choices=['whatsapp', 'signal', 'telegram'],
+                        help="Get QR code for login")
 
 
     args = parser.parse_args()
@@ -972,9 +1082,15 @@ async def main():
         print("Login failed. Exiting.")
         return
 
-    # Message Signal bot to reinitialize connection
-    print("\nMessaging Signal bot to reinitialize connection...")
-    await monitor.message_signal_bot()
+    # platforms_mapping = {
+    #     'whatsapp': WHATSAPP_BOT_MXID,
+    #     'signal': SIGNAL_BOT_MXID,
+    #     'telegram': TELEGRAM_BOT_MXID
+    # }
+    if args.qr:
+        print("\nGenerating QR code...")
+        await monitor.message_bridge_bot(args.qr)
+
 
     # # Accept pending invites
     # print("\nAccepting pending invites...")
@@ -991,18 +1107,18 @@ async def main():
         print(joined)
         return
 
-    # Find bridge rooms
-    print("\nSearching for bridge rooms...")
-    success = await monitor.find_bridge_rooms()
-    if not success:
-        print("Failed to find bridge rooms. Make sure:")
-        print("1. Your messaging platforms are connected to Matrix via bridges")
-        print("2. You have at least one chat visible in your Matrix client")
-        print("3. Your credentials and server URL are correct")
-        print("4. The bridge bot MXIDs are correct in your environment variables")
-        return
+    # # Find bridge rooms
+    # print("\nSearching for bridge rooms...")
+    # success = await monitor.find_bridge_rooms()
+    # if not success:
+    #     print("Failed to find bridge rooms. Make sure:")
+    #     print("1. Your messaging platforms are connected to Matrix via bridges")
+    #     print("2. You have at least one chat visible in your Matrix client")
+    #     print("3. Your credentials and server URL are correct")
+    #     print("4. The bridge bot MXIDs are correct in your environment variables")
+    #     return
 
-    # Start monitoring
+    # # Start monitoring
     print("\nStarting message monitoring...")
     await monitor.monitor_messages()
 
