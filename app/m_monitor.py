@@ -785,8 +785,7 @@ class MultiPlatformMessageMonitor:
 
                 data = response.json()
                 rooms = data.get("rooms", {}).get("invite", {})
-                print('test')
-                print(self.bridge_configs)
+
                 pending_invites = []
                 for room_id, room_data in rooms.items():
                     room_name = None
@@ -802,7 +801,7 @@ class MultiPlatformMessageMonitor:
                         is_group = await self.is_group_room(room_name)
                         if not is_group:
                             continue
-                    pending_invites.append({"room_id": room_id, "room_name": room_name, "platform": platform})
+                    pending_invites.append({"room_id": room_id, "room_name": room_name, "platform": platform, 'user_id': self.username})
 
                 print("Pending invites:")
                 for invite in pending_invites:
@@ -857,7 +856,7 @@ class MultiPlatformMessageMonitor:
                     # Try to determine platform
                     platform = await self.detect_room_platform(room_id, client)
 
-                    joined_rooms.append({"room_id": room_id, "room_name": room_name, "platform": platform})
+                    joined_rooms.append({"room_id": room_id, "room_name": room_name, "platform": platform, 'user_id': self.username})
 
                 print("Joined rooms:")
                 for room in joined_rooms:
