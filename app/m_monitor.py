@@ -742,6 +742,27 @@ class MultiPlatformMessageMonitor:
         db.insert_one(record)
         print(f'Message {event_id} was recieved')
 
+    async def detect_room_platform(self, room_id, client, invite_state=None):
+        """Detect the platform of a room by checking for the presence of bridge bot MXIDs as members, or by checking the invite event's sender if provided."""
+        # If invite_state is provided (for invites), check sender of invite events
+        if invite_state:
+            for event in invite_state:
+                sender = event.get("sender")
+                if sender:
+                    for plat, config in self.bridge_configs.items():
+                        if sender == config.bot_mxid:
+                            return plat
+        # Fallback: check for bot as member (works for joined rooms)
+        for plat, config in self.bridge_configs.items():
+            member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
+            member_resp = await client.get(
+                member_url,
+                headers={"Authorization": f"Bearer {self.access_token}"}
+            )
+            if member_resp.status_code == 200:
+                return plat
+        return None
+
     async def list_pending_invites(self, group=True):
         """List all rooms (chats) waiting for approval (invites not yet accepted). If group=True, return only group rooms. Adds platform info."""
         if not self.access_token:
@@ -764,7 +785,8 @@ class MultiPlatformMessageMonitor:
 
                 data = response.json()
                 rooms = data.get("rooms", {}).get("invite", {})
-
+                print('test')
+                print(self.bridge_configs)
                 pending_invites = []
                 for room_id, room_data in rooms.items():
                     room_name = None
@@ -773,17 +795,8 @@ class MultiPlatformMessageMonitor:
                         if event.get("type") == "m.room.name":
                             room_name = event.get("content", {}).get("name")
                             break
-                    # Try to determine platform
-                    platform = None
-                    for plat, config in self.bridge_configs.items():
-                        member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
-                        member_resp = await client.get(
-                            member_url,
-                            headers={"Authorization": f"Bearer {self.access_token}"}
-                        )
-                        if member_resp.status_code == 200:
-                            platform = plat
-                            break
+                    # Try to determine platform (pass invite_state for detection)
+                    platform = await self.detect_room_platform(room_id, client, invite_state=invite_state)
                     # Check group filter
                     if group:
                         is_group = await self.is_group_room(room_name)
@@ -834,22 +847,16 @@ class MultiPlatformMessageMonitor:
                         room_name = name_resp.json().get("name")
                     else:
                         room_name = None
-                    # Try to determine platform
-                    platform = None
-                    for plat, config in self.bridge_configs.items():
-                        member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
-                        member_resp = await client.get(
-                            member_url,
-                            headers={"Authorization": f"Bearer {self.access_token}"}
-                        )
-                        if member_resp.status_code == 200:
-                            platform = plat
-                            break
+
                     # Check group filter
                     if group:
                         is_group = await self.is_group_room(room_name)
                         if not is_group:
                             continue
+
+                    # Try to determine platform
+                    platform = await self.detect_room_platform(room_id, client)
+
                     joined_rooms.append({"room_id": room_id, "room_name": room_name, "platform": platform})
 
                 print("Joined rooms:")
