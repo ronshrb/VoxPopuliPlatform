@@ -16,7 +16,6 @@ from researcher_app import researcher_app
 # from register_app import register_page
 import dbs
 
-
 # Custom CSS for styling
 st.markdown("""
 <style>
@@ -58,6 +57,7 @@ st.markdown("""
 db_name = "VoxPopuli" # change to your database name
 users = dbs.UsersColl(db_name)
 projects = dbs.ProjectsColl(db_name)
+chats = dbs.ChatsColl(db_name)
 
 # Initialize session state for login
 if "logged_in" not in st.session_state:
@@ -154,7 +154,7 @@ if not st.session_state["logged_in"]:
 else:
     # Redirect to the appropriate app based on role
     if st.session_state["role"] == "User":
-        user_app(st.session_state["user"], users, projects, st.session_state['password'])
+        user_app(st.session_state["user"], users, projects, chats, st.session_state['password'])
     elif st.session_state["role"] == "Researcher":
         researcher_app(st.session_state["user"], users, projects)
 

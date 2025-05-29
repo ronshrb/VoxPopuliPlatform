@@ -763,110 +763,90 @@ class MultiPlatformMessageMonitor:
                 return plat
         return None
 
-    async def list_pending_invites(self, group=True):
-        """List all rooms (chats) waiting for approval (invites not yet accepted). If group=True, return only group rooms. Adds platform info."""
+    async def list_rooms(self, room_type="joined", group=True):
+        """
+        List rooms of a given type: 'joined' or 'invited'.
+        If group=True, return only group rooms. Adds platform info.
+        """
         if not self.access_token:
-            print("Not logged in. Cannot list invites.")
+            print(f"Not logged in. Cannot list {room_type} rooms.")
             return []
-
-        invites_url = f"{self.synapse_url}/_matrix/client/v3/sync"
 
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             try:
-                response = await client.get(
-                    invites_url,
-                    headers={"Authorization": f"Bearer {self.access_token}"},
-                    params={"timeout": 10000}  # 10 seconds timeout
-                )
-
-                if response.status_code != 200:
-                    print(f"Failed to fetch invites: {response.status_code} - {response.text}")
-                    return []
-
-                data = response.json()
-                rooms = data.get("rooms", {}).get("invite", {})
-
-                pending_invites = []
-                for room_id, room_data in rooms.items():
-                    room_name = None
-                    invite_state = room_data.get("invite_state", {}).get("events", [])
-                    for event in invite_state:
-                        if event.get("type") == "m.room.name":
-                            room_name = event.get("content", {}).get("name")
-                            break
-                    # Try to determine platform (pass invite_state for detection)
-                    platform = await self.detect_room_platform(room_id, client, invite_state=invite_state)
-                    # Check group filter
-                    if group:
-                        is_group = await self.is_group_room(room_name)
-                        if not is_group:
-                            continue
-                    pending_invites.append({"room_id": room_id, "room_name": room_name, "platform": platform, 'user_id': self.username})
-
-                print("Pending invites:")
-                for invite in pending_invites:
-                    print(f"  - {invite['room_id']} ({invite['room_name'] or 'Unnamed'}) [platform: {invite['platform'] or 'unknown'}]")
-
-                return pending_invites
-
-            except Exception as e:
-                print(f"Error while listing invites: {str(e)}")
-                return []
-
-    async def list_joined_rooms(self, group=True):
-        """List all rooms (chats) you have already joined. If group=True, return only group rooms. Adds platform info."""
-        if not self.access_token:
-            print("Not logged in. Cannot list joined rooms.")
-            return []
-
-        joined_rooms_url = f"{self.synapse_url}/_matrix/client/v3/joined_rooms"
-
-        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
-            try:
-                response = await client.get(
-                    joined_rooms_url,
-                    headers={"Authorization": f"Bearer {self.access_token}"}
-                )
-
-                if response.status_code != 200:
-                    print(f"Failed to fetch joined rooms: {response.status_code} - {response.text}")
-                    return []
-
-                room_ids = response.json().get("joined_rooms", [])
-                joined_rooms = []
-
-                for room_id in room_ids:
-                    # Fetch room name
-                    name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
-                    name_resp = await client.get(
-                        name_url,
+                if room_type == "invited":
+                    # Invited rooms (pending invites)
+                    invites_url = f"{self.synapse_url}/_matrix/client/v3/sync"
+                    response = await client.get(
+                        invites_url,
+                        headers={"Authorization": f"Bearer {self.access_token}"},
+                        params={"timeout": 10000}
+                    )
+                    if response.status_code != 200:
+                        print(f"Failed to fetch invites: {response.status_code} - {response.text}")
+                        return []
+                    data = response.json()
+                    rooms = data.get("rooms", {}).get("invite", {})
+                    result = []
+                    for room_id, room_data in rooms.items():
+                        room_name = None
+                        invite_state = room_data.get("invite_state", {}).get("events", [])
+                        for event in invite_state:
+                            if event.get("type") == "m.room.name":
+                                room_name = event.get("content", {}).get("name")
+                                break
+                        platform = await self.detect_room_platform(room_id, client, invite_state=invite_state)
+                        if group:
+                            is_group = await self.is_group_room(room_name)
+                            if not is_group:
+                                continue
+                        result.append({"ChatID": room_id, "Chat Name": room_name, "Platform": platform, 'UserID': self.username, "Donated": False})
+                    print("Pending invites:")
+                    for invite in result:
+                        print(f"  - {invite['ChatID']} ({invite['Chat Name'] or 'Unnamed'}) [Platform: {invite['Platform'] or 'unknown'}]")
+                    return result
+                else:
+                    # Joined rooms
+                    joined_rooms_url = f"{self.synapse_url}/_matrix/client/v3/joined_rooms"
+                    response = await client.get(
+                        joined_rooms_url,
                         headers={"Authorization": f"Bearer {self.access_token}"}
                     )
-                    if name_resp.status_code == 200:
-                        room_name = name_resp.json().get("name")
-                    else:
-                        room_name = None
-
-                    # Check group filter
-                    if group:
-                        is_group = await self.is_group_room(room_name)
-                        if not is_group:
-                            continue
-
-                    # Try to determine platform
-                    platform = await self.detect_room_platform(room_id, client)
-
-                    joined_rooms.append({"room_id": room_id, "room_name": room_name, "platform": platform, 'user_id': self.username})
-
-                print("Joined rooms:")
-                for room in joined_rooms:
-                    print(f"  - {room['room_id']} ({room['room_name'] or 'Unnamed'}) [platform: {room['platform'] or 'unknown'}]")
-
-                return joined_rooms
-
+                    if response.status_code != 200:
+                        print(f"Failed to fetch joined rooms: {response.status_code} - {response.text}")
+                        return []
+                    room_ids = response.json().get("joined_rooms", [])
+                    result = []
+                    for room_id in room_ids:
+                        name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
+                        name_resp = await client.get(
+                            name_url,
+                            headers={"Authorization": f"Bearer {self.access_token}"}
+                        )
+                        if name_resp.status_code == 200:
+                            room_name = name_resp.json().get("name")
+                        else:
+                            room_name = None
+                        if group:
+                            is_group = await self.is_group_room(room_name)
+                            if not is_group:
+                                continue
+                        platform = await self.detect_room_platform(room_id, client)
+                        result.append({"ChatID": room_id, "Chat Name": room_name, "Platform": platform, 'UserID': self.username, "Donated": True})
+                    print("Joined rooms:")
+                    for room in result:
+                        print(f"  - {room['ChatID']} ({room['Chat Name'] or 'Unnamed'}) [Platform: {room['Platform'] or 'unknown'}]")
+                    return result
             except Exception as e:
-                print(f"Error while listing joined rooms: {str(e)}")
+                print(f"Error while listing {room_type} rooms: {str(e)}")
                 return []
+
+    # Backward compatibility wrappers
+    async def list_pending_invites(self, group=True):
+        return await self.list_rooms(room_type="invited", group=group)
+
+    async def list_joined_rooms(self, group=True):
+        return await self.list_rooms(room_type="joined", group=group)
 
 
     async def rejoin_signal_bot_room(self):

@@ -9,8 +9,22 @@ import asyncio
 import time
 
 
-def user_app(userid, users, projects, password):
+def user_app(userid, users, projects, chats, password):
     """Main function for the User Dashboard."""
+
+    # Use a persistent web_monitor instance in session state
+    if "web_monitor" not in st.session_state:
+        # Explicitly set all platforms to ensure bridge_configs is populated
+        web_monitor = WebMonitor(username=userid, password=password, platforms=["signal", "whatsapp", "telegram"])
+        login_result = asyncio.run(web_monitor.login())
+        if login_result.get("status") == "success":
+            st.session_state["web_monitor"] = web_monitor
+        else:
+            st.error("Login failed. Please try again.")
+            return
+    else:
+        web_monitor = st.session_state["web_monitor"]
+
     # Fetch user data
     user_data = users.get_user_by_id(userid)
 
@@ -28,10 +42,19 @@ def user_app(userid, users, projects, password):
     # username = user_data['Username']
     # userid = user_data['UserID']
 
-    # # Fetch user's chats
+    # Fetch user's chats (async calls)
+    donated_result = asyncio.run(web_monitor.get_invited_chats())
+    not_donated_result = asyncio.run(web_monitor.get_joined_chats())
+    donated_chats = donated_result.get("invited_chats", [])
+    not_donated_chats = not_donated_result.get("joined_chats", [])
+    chats.update_collection(donated_chats)
+    chats.update_collection(not_donated_chats)
+    # users_chats = chats.get_chat_by_user(userid)
     # user_chats = users.get_user_chats(userid)
 
-    # # Convert chats to a DataFrame (empty DataFrame if no chats)
+    # Chats management
+
+    # Convert chats to a DataFrame (empty DataFrame if no chats)
     # chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'ChatName', 'Donated', 'StartDate', 'ProjectID'])
     # chats_df['Donated'] = chats_df['Donated'].astype(bool)
     # chats_df['StartDate'] = pd.to_datetime(chats_df['StartDate'], errors='coerce').dt.date
@@ -59,21 +82,6 @@ def user_app(userid, users, projects, password):
         if cooldown_remaining > 0:
             st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")
         else:
-            if "web_monitor" not in st.session_state:
-                web_monitor = WebMonitor(username=userid, password=password)
-                try:
-                    login_result = asyncio.run(web_monitor.login())
-                    if login_result.get("status") == "success":
-                        st.session_state["web_monitor"] = web_monitor
-                    else:
-                        st.sidebar.error("Login failed. Cannot generate QR code.")
-                        return
-                except Exception as e:
-                    st.sidebar.error(f"Login error: {str(e)}")
-                    return
-            else:
-                web_monitor = st.session_state["web_monitor"]
-
             try:
                 with st.sidebar:
                     st.spinner(f"Generating QR Code for {selected_platform}...")
