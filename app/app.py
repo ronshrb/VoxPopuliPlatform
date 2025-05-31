@@ -62,14 +62,16 @@ tables_dict = {
     "Chats": dbs.ChatsTable(),
     "UserProjects": dbs.UserProjectsTable(),
     "ChatsProjects": dbs.ChatProjectsTable(),
+    "ChatsBlacklist": dbs.ChatsBlacklistTable(),
 }
 
-users, projects, chats, user_projects, chats_projects = (
+users, projects, chats, user_projects, chats_projects, chats_blacklist = (
     tables_dict["Users"],
     tables_dict["Projects"],
     tables_dict["Chats"],
     tables_dict["UserProjects"],
-    tables_dict["ChatsProjects"]
+    tables_dict["ChatsProjects"],
+    tables_dict["ChatsBlacklist"],
 )
 
 # Initialize session state for login

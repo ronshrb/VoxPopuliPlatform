@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, select, insert, update, ForeignKey
+from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, select, insert, update, ForeignKey, delete
 import pandas as pd
 from datetime import datetime
 import connectors
@@ -55,6 +55,11 @@ chat_projects_table = Table(
     'chat_projects', metadata,
     Column('chatid', String, ForeignKey('chats.chatid', ondelete='CASCADE'), primary_key=True),
     Column('projectid', String, ForeignKey('projects.projectid', ondelete='CASCADE'), primary_key=True)
+)
+
+chats_blacklist_table = Table(
+    'chats_blacklist', metadata,
+    Column('chatid', String, primary_key=True)
 )
 # Mongo
 mongo_conn = connectors.mongo_connector()
@@ -450,6 +455,10 @@ class ChatProjectsTable:
     def __init__(self):
         self.chat_projects_table = chat_projects_table
 
+    def get_df(self):
+        result = session.execute(select(self.chat_projects_table)).fetchall()
+        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+
     def add_chat_project(self, chat_id, project_id):
         try:
             stmt = insert(self.chat_projects_table).values(
@@ -464,7 +473,7 @@ class ChatProjectsTable:
                 print(f"Error in add_chat_project: {e}")
 
     def remove_chat_project(self, chat_id, project_id):
-        from sqlalchemy import delete
+        
         try:
             stmt = delete(self.chat_projects_table).where(
                 (self.chat_projects_table.c.chatid == chat_id) &
@@ -511,3 +520,40 @@ class ChatProjectsTable:
             session.rollback()
             print(f"Error in is_chat_in_project: {e}")
             return False
+        
+    def chat_project_exists(self, chat_id, project_id):
+        try:
+            result = session.execute(
+                select(self.chat_projects_table).where(
+                    (self.chat_projects_table.c.chatid == chat_id) &
+                    (self.chat_projects_table.c.projectid == project_id)
+                )
+            ).fetchone()
+            return result is not None
+        except Exception as e:
+            session.rollback()
+            print(f"Error in chat_project_exists: {e}")
+            return False
+
+class ChatsBlacklistTable:
+    def __init__(self):
+        self.chats_blacklist_table = chats_blacklist_table
+
+    def get_all_ids(self):
+        try:
+            result = session.execute(select(self.chats_blacklist_table.c.chatid)).fetchall()
+            return [row[0] for row in result] if result else []
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_all_ids: {e}")
+            return []
+
+    def add_id(self, chat_id):
+        try:
+            stmt = insert(self.chats_blacklist_table).values(chatid=chat_id)
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            if 'duplicate key' not in str(e):
+                print(f"Error in add_id: {e}")

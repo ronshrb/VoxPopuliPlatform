@@ -123,18 +123,18 @@ class WebMonitor:
             st.error(f"An error occurred during login: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
     
-    async def get_joined_chats(self, group=True):
+    async def get_joined_chats(self, group=True, chats_blacklist=None):
         """Return a list of joined rooms/chats with platform info."""
         try:
-            joined = await self.monitor.list_rooms(room_type="joined", group=group)
+            joined = await self.monitor.list_rooms(room_type="joined", group=group, chats_blacklist=chats_blacklist)
             return {"status": "success", "joined_chats": joined}
         except Exception as e:
             return {"status": "error", "message": f"Failed to get joined chats: {str(e)}"}
 
-    async def get_invited_chats(self, group=True):
+    async def get_invited_chats(self, group=True, chats_blacklist=None):
         """Return a list of invited (pending) rooms/chats with platform info."""
         try:
-            invites = await self.monitor.list_rooms(room_type="invited", group=group)
+            invites = await self.monitor.list_rooms(room_type="invited", group=group, chats_blacklist=chats_blacklist)
             return {"status": "success", "invited_chats": invites}
         except Exception as e:
             return {"status": "error", "message": f"Failed to get invited chats: {str(e)}"}

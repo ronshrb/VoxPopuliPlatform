@@ -763,7 +763,7 @@ class MultiPlatformMessageMonitor:
                 return plat
         return None
 
-    async def list_rooms(self, room_type="joined", group=True):
+    async def list_rooms(self, room_type="joined", group=True, chats_blacklist=None):
         """
         List rooms of a given type: 'joined' or 'invited'.
         If group=True, return only group rooms. Adds platform info.
@@ -789,6 +789,8 @@ class MultiPlatformMessageMonitor:
                     rooms = data.get("rooms", {}).get("invite", {})
                     result = []
                     for room_id, room_data in rooms.items():
+                        if room_id in chats_blacklist:
+                            continue
                         room_name = None
                         invite_state = room_data.get("invite_state", {}).get("events", [])
                         for event in invite_state:
@@ -818,6 +820,8 @@ class MultiPlatformMessageMonitor:
                     room_ids = response.json().get("joined_rooms", [])
                     result = []
                     for room_id in room_ids:
+                        if room_id in chats_blacklist:
+                            continue
                         name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
                         name_resp = await client.get(
                             name_url,
@@ -842,11 +846,11 @@ class MultiPlatformMessageMonitor:
                 return []
 
     # Backward compatibility wrappers
-    async def list_pending_invites(self, group=True):
-        return await self.list_rooms(room_type="invited", group=group)
+    async def list_pending_invites(self, group=True, chats_blacklist=None):
+        return await self.list_rooms(room_type="invited", group=group, chats_blacklist=chats_blacklist)
 
     async def list_joined_rooms(self, group=True):
-        return await self.list_rooms(room_type="joined", group=group)
+        return await self.list_rooms(room_type="joined", group=group, chats_blacklist=chats_blacklist)
 
 
     async def rejoin_signal_bot_room(self):

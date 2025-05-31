@@ -12,13 +12,15 @@ import time
 def user_app(userid, tables_dict, password):
     """Main function for the User Dashboard."""
     
-    chats, users, projects, user_projects, chats_projects = (
+    chats, users, projects, user_projects, chats_projects, chats_blacklist = (
         tables_dict["Chats"],
         tables_dict["Users"],
         tables_dict["Projects"],
         tables_dict["UserProjects"],
-        tables_dict["ChatsProjects"]
+        tables_dict["ChatsProjects"],
+        tables_dict["ChatsBlacklist"],
     )
+
 
     # Use a persistent web_monitor instance in session state
     if "web_monitor" not in st.session_state:
@@ -127,18 +129,21 @@ def user_app(userid, tables_dict, password):
                 selection_mode ="multi",
             )
             search_text = st.text_input("Search by chat name")
-            donation_filter = st.selectbox("Filter by donation status", ["All", "Active", "Not Active"])
+            donation_filter = st.selectbox("Filter by donation status", ["All", "Donated", "Not Donated"])
             
-            # add active column
+            # add donate column
             if selected_project_id:
-                chats_df['Active'] = chats_df['ChatID'].apply(
+                chats_df['Donated'] = chats_df['ChatID'].apply(
                     lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
                 )
             else:
-                chats_df['Active'] = False
+                chats_df['Donated'] = False
+
+            # add blacklist column
+            chats_df['Blacklist'] = False
 
             filtered_df = chats_df.copy()
-            
+
             # Apply filters
             if selected_project_id:
                 if selected_platforms:
@@ -147,23 +152,23 @@ def user_app(userid, tables_dict, password):
                     ]
                 if search_text:
                     filtered_df = filtered_df[filtered_df['Chat Name'].str.contains(search_text, case=False, na=False)]
-                if donation_filter == "Active":
-                    filtered_df = filtered_df[filtered_df['Active'] == True]
-                elif donation_filter == "Not Active":
-                    filtered_df = filtered_df[filtered_df['Active'] == False]
+                if donation_filter == "Donated":
+                    filtered_df = filtered_df[filtered_df['Donated'] == True]
+                elif donation_filter == "Not Donated":
+                    filtered_df = filtered_df[filtered_df['Donated'] == False]
             
             if st.button("Refresh My Chats"):
                 donated_result = asyncio.run(web_monitor.get_invited_chats())
                 not_donated_result = asyncio.run(web_monitor.get_joined_chats())
                 donated_chats = donated_result.get("invited_chats", [])
                 not_donated_chats = not_donated_result.get("joined_chats", [])
-                chats.update_all_chats(donated_chats)
-                chats.update_all_chats(not_donated_chats)
+                chats.update_all_chats(donated_chats, chats_blacklist) # add blacklist
+                chats.update_all_chats(not_donated_chats, chats_blacklist)
                 st.rerun()
 
         with col2:
             # Display and edit table
-            editable_cols = ['Active']
+            editable_cols = ['Donated', 'Blacklist']
             displayed_cols = ['ChatID', 'Chat Name', 'Platform'] + editable_cols
             st.markdown("### ☑️ Chats Picker")
             edited_df = st.data_editor(
@@ -171,35 +176,50 @@ def user_app(userid, tables_dict, password):
                 use_container_width=True,
                 num_rows="fixed",
                 column_config={
-                    "Active": st.column_config.CheckboxColumn("Active"),
-                    'ChatID': None
+                    "Donated": st.column_config.CheckboxColumn("Donated", help="Select if you want to donate this chat to the project"),
+                    'ChatID': None,
+                    'Blacklist': st.column_config.CheckboxColumn("Blacklist", help="Select to delete this chat from all projects"),
                 },
                 disabled=["Chat Name"],
                 hide_index=True
             )
         with col1:
-            # Move Save Changes button and logic here, after edited_df is defined
+            # save changes
             if not filtered_df.empty and st.button("Save Changes"):
                 for _, row in edited_df.iterrows():
                     chat_id = row["ChatID"]
-                    original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
-                    if row["Active"] != original_row["Active"]:
-                        if row["Active"]:
-                            chats_projects.add_chat_project(chat_id=chat_id, project_id=selected_project_id)
-                            # Accept invite if chat is not already joined
-                            result = asyncio.run(web_monitor.approve_room(chat_id))
-                            if result.get("status") == "success":
-                                st.toast(f"Approved (joined) room: {row['Chat Name']}", icon="✅")
-                            else:
-                                st.toast(f"Failed to approve room: {row['Chat Name']}", icon="❌")
+                    if row["Blacklist"]:
+                        # Remove chat from project and delete it
+                        chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
+                        chats.delete_chat(chat_id)
+                        st.toast(f"Deleted chat: {row['Chat Name']}", icon="✅")
+                        result = asyncio.run(web_monitor.disable_room(chat_id))
+                        chats_blacklist.add_chat_to_blacklist(chat_id)  # add to chats blacklist
+                        if result.get("status") == "success":
+                            st.toast(f"Disabled Chat: {row['Chat Name']}", icon="✅")
                         else:
+                            st.toast(f"Failed to disable chat: {row['Chat Name']}", icon="❌")
+                        st.toast(f"Deleted chat: {row['Chat Name']}", icon="✅")
+                        continue
+                    original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
+                    if row["Donated"] != original_row["Donated"]:
+                        if row["Donated"]: 
+                            if not row['Active']:  # Accept invite if chat is not already joined
+                                result = asyncio.run(web_monitor.approve_room(chat_id))
+                                if result.get("status") == "success":
+                                    st.toast(f"Donated Chat: {row['Chat Name']}", icon="✅")
+                                else:
+                                    st.toast(f"Failed to donate chat: {row['Chat Name']}", icon="❌")
+
+                            chats_projects.add_chat_project(chat_id=chat_id, project_id=selected_project_id)
+                        else: # Remove chat from project (room is still joined)
                             chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
                             # Disable (leave) the room
                             result = asyncio.run(web_monitor.disable_room(chat_id))
                             if result.get("status") == "success":
-                                st.toast(f"Disabled (left) room: {row['Chat Name']}", icon="✅")
+                                st.toast(f"Disabled Chat: {row['Chat Name']}", icon="✅")
                             else:
-                                st.toast(f"Failed to disable room: {row['Chat Name']}", icon="❌")
+                                st.toast(f"Failed to disable Chat: {row['Chat Name']}", icon="❌")
                         st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
             
     with tab2:
