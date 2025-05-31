@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# MultiPlatformMessageMonitor: Matrix bridge monitor for WhatsApp, Signal, Telegram
+# Handles login, room management, message monitoring, and MongoDB integration
+# Author: [Your Name]
+# Date: [Date]
+
 import asyncio
 import os
 import json
@@ -37,7 +42,10 @@ ADMIN_ACCESS_TOKEN = os.getenv("ADMIN_ACCESS_TOKEN")
 
 
 class BridgeConfig:
-    """Configuration for different bridge types"""
+    """
+    Configuration for different bridge types (WhatsApp, Signal, Telegram).
+    Stores bot MXID, room indicators, and message parsing patterns.
+    """
 
     def __init__(self, name: str, bot_mxid: str, room_indicators: List[str], message_patterns: Optional[Dict] = None):
         self.name = name
@@ -46,18 +54,28 @@ class BridgeConfig:
         self.message_patterns = message_patterns or {}
 
 class mongo_connector():
+    """
+    MongoDB connector utility for accessing collections.
+    """
     def __init__(self):
         self.db_connection_string = MONGODB_URI
         self.client = MongoClient(self.db_connection_string)
         self.db = None
 
     def get_client(self):
+        # Return MongoDB client instance
         return self.client
     
     def get_db(self, db_name, collection_name):
+        # Return a collection handle for the given db and collection
         return self.client[db_name][collection_name]
 
 class MultiPlatformMessageMonitor:
+    """
+    Main monitor class for Matrix bridge rooms and messages.
+    Handles login, room listing, joining/leaving, message monitoring, and MongoDB logging.
+    """
+
     def __init__(self, username, password, server_url=None, platforms=None):
         self.username = username
         self.password = password
@@ -110,7 +128,9 @@ class MultiPlatformMessageMonitor:
             print(f"  - {config.name}: {config.bot_mxid}")
             
     async def register(self, username, password):
-        """Register a new user on the Matrix server"""
+        """
+        Register a new user on the Matrix server using admin access token.
+        """
         headers = {
             "Authorization": f"Bearer {ADMIN_ACCESS_TOKEN}",
             "Content-Type": "application/json"
@@ -150,7 +170,9 @@ class MultiPlatformMessageMonitor:
                 return None
             
     async def login(self):
-        """Log in to Matrix and obtain an access token"""
+        """
+        Log in to Matrix and obtain an access token for API calls.
+        """
         login_url = f"{self.synapse_url}/_matrix/client/v3/login"
 
         # Extract domain from server URL
@@ -188,7 +210,9 @@ class MultiPlatformMessageMonitor:
                 return False
 
     async def find_bridge_rooms(self):
-        """Find all bridge rooms for configured platforms"""
+        """
+        Find all joined rooms that are bridge rooms for configured platforms.
+        """
         if not self.access_token:
             print("Not logged in. Cannot find bridge rooms.")
             return False
@@ -245,7 +269,9 @@ class MultiPlatformMessageMonitor:
                 return False
 
     async def check_if_bridge_room(self, room_id, client):
-        """Check if a room is a bridge room and identify which platform"""
+        """
+        Check if a room is a bridge room and identify which platform it belongs to.
+        """
         state_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state"
 
         try:
@@ -308,7 +334,9 @@ class MultiPlatformMessageMonitor:
             print(f"Error checking room {room_id}: {str(e)}")
 
     async def monitor_messages(self):
-        """Monitor for all messages in bridge rooms"""
+        """
+        Monitor for all messages in bridge rooms using Matrix sync API.
+        """
         if not self.access_token or not self.bridge_rooms:
             print("Not logged in or no bridge rooms found. Cannot monitor messages.")
             return False
@@ -392,7 +420,9 @@ class MultiPlatformMessageMonitor:
                 return False
 
     async def process_sync_events(self, sync_data):
-        """Process events from sync response and print all messages"""
+        """
+        Process events from sync response and print all messages for joined bridge rooms.
+        """
         rooms = sync_data.get("rooms", {}).get("join", {})
 
         for room_id, room_data in rooms.items():
@@ -409,7 +439,9 @@ class MultiPlatformMessageMonitor:
 
 
     async def print_message(self, room_id, event):
-        """Format and print a message to the terminal"""
+        """
+        Format and print a message to the terminal, handling bridge bot formatting.
+        """
         content = event.get("content", {})
         msgtype = content.get("msgtype")
         sender = event.get("sender", "Unknown")
@@ -489,7 +521,10 @@ class MultiPlatformMessageMonitor:
                 f"[{time_str}] [{platform}] [{room_name}] {display_name} sent a {msgtype} message: {content.get('body', 'Message')}")
 
     async def generate_qr(self, platform='whatsapp'):
-        """Send a message to the bridge bot (Signal, WhatsApp, Telegram) to create a room, then retrieve and return the QR code. If a direct chat with the bot exists, leave it first."""
+        """
+        Send a message to the bridge bot to create a room, then retrieve and return the QR code.
+        If a direct chat with the bot exists, leave it first.
+        """
         if not self.access_token:
             print("Not logged in. Cannot generate QR code.")
             return None
@@ -659,7 +694,9 @@ class MultiPlatformMessageMonitor:
                 if room_id:
                     await self._leave_room(client, room_id)
     async def _leave_room(self, client, room_id):
-        """Leave the Matrix room with the given room_id."""
+        """
+        Leave the Matrix room with the given room_id.
+        """
         try:
             leave_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/leave"
             response = await client.post(
@@ -674,7 +711,9 @@ class MultiPlatformMessageMonitor:
             print(f"Exception while leaving the room {room_id}: {str(e)}")
             
     async def insert_msg_to_mongo(self, room_id, event):
-        """Insert a message into MongoDB."""
+        """
+        Insert a message event into MongoDB for archiving and analytics.
+        """
         lines = []
         content = event.get("content", {})
         msgtype = content.get("msgtype")
@@ -743,7 +782,10 @@ class MultiPlatformMessageMonitor:
         print(f'Message {event_id} was recieved')
 
     async def detect_room_platform(self, room_id, client, invite_state=None):
-        """Detect the platform of a room by checking for the presence of bridge bot MXIDs as members, or by checking the invite event's sender if provided."""
+        """
+        Detect the platform of a room by checking for the presence of bridge bot MXIDs as members,
+        or by checking the invite event's sender if provided.
+        """
         # If invite_state is provided (for invites), check sender of invite events
         if invite_state:
             for event in invite_state:
@@ -767,6 +809,7 @@ class MultiPlatformMessageMonitor:
         """
         List rooms of a given type: 'joined' or 'invited'.
         If group=True, return only group rooms. Adds platform info.
+        Filters out blacklisted rooms.
         """
         if not self.access_token:
             print(f"Not logged in. Cannot list {room_type} rooms.")
@@ -845,16 +888,11 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while listing {room_type} rooms: {str(e)}")
                 return []
 
-    # Backward compatibility wrappers
-    async def list_pending_invites(self, group=True, chats_blacklist=None):
-        return await self.list_rooms(room_type="invited", group=group, chats_blacklist=chats_blacklist)
-
-    async def list_joined_rooms(self, group=True):
-        return await self.list_rooms(room_type="joined", group=group, chats_blacklist=chats_blacklist)
-
 
     async def rejoin_signal_bot_room(self):
-        """Rejoin the Signal bot's room if it is missing"""
+        """
+        Rejoin the Signal bot's room if it is missing for the current user.
+        """
         if not self.access_token:
             print("Not logged in. Cannot rejoin Signal bot room.")
             return False
@@ -885,7 +923,10 @@ class MultiPlatformMessageMonitor:
 
 
     async def message_bridge_bot(self, platform):
-        """Send a direct message to the bridge bot (Signal, WhatsApp, or Telegram), wait 10 seconds, then send 'login qr' or equivalent."""
+        """
+        Send a direct message to the bridge bot (Signal, WhatsApp, or Telegram),
+        wait 10 seconds, then send 'login qr' or equivalent command.
+        """
         if not self.access_token:
             print(f"Not logged in. Cannot message {platform} bot.")
             return False
@@ -976,8 +1017,10 @@ class MultiPlatformMessageMonitor:
                 return False
 
     async def is_group_room(self, room_name):
-        """Check if a room is a group (not a direct chat). Returns True if group, False if direct chat.
-        Uses platform-specific heuristics for Signal and WhatsApp."""
+        """
+        Check if a room is a group (not a direct chat).
+        Uses platform-specific heuristics for Signal and WhatsApp.
+        """
         try:
             # if not room_name or room_name.strip() == "":
             #     return False
@@ -993,7 +1036,9 @@ class MultiPlatformMessageMonitor:
         
 
     async def approve_room(self, room_id):
-        """Accept (join) a pending invite to a room."""
+        """
+        Accept (join) a pending invite to a room.
+        """
         if not self.access_token:
             print("Not logged in. Cannot approve room.")
             return False
@@ -1015,7 +1060,9 @@ class MultiPlatformMessageMonitor:
                 return False
 
     async def disable_room(self, room_id):
-        """Leave (disable) a room."""
+        """
+        Leave (disable) a room by sending a leave request to Matrix.
+        """
         if not self.access_token:
             print("Not logged in. Cannot disable room.")
             return False

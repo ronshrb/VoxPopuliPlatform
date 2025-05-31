@@ -10,8 +10,11 @@ import time
 
 
 def user_app(userid, tables_dict, password):
-    """Main function for the User Dashboard."""
-    
+    """
+    Main function for the User Dashboard.
+    Handles chat/project management, QR code generation, and user actions.
+    """
+    # Unpack table objects from tables_dict
     chats, users, projects, user_projects, chats_projects, chats_blacklist = (
         tables_dict["Chats"],
         tables_dict["Users"],
@@ -20,7 +23,6 @@ def user_app(userid, tables_dict, password):
         tables_dict["ChatsProjects"],
         tables_dict["ChatsBlacklist"],
     )
-
 
     # Use a persistent web_monitor instance in session state
     if "web_monitor" not in st.session_state:
@@ -35,7 +37,7 @@ def user_app(userid, tables_dict, password):
     else:
         web_monitor = st.session_state["web_monitor"]
 
-    # Fetch user data
+    # Fetch user data from UsersTable
     user_data = users.get_user_by_id(userid)
 
     if not user_data:
@@ -47,7 +49,6 @@ def user_app(userid, tables_dict, password):
             st.session_state["user"] = None
             st.rerun()
         return
-
 
     # Fetch user's chats from the database using ChatsTable
     user_chats = chats.get_chat_by_user(userid)
@@ -96,19 +97,16 @@ def user_app(userid, tables_dict, password):
                 except Exception as e:
                     pass
 
-
-
+    # Main tabs for user dashboard
     tab1, tab2, tab3 = st.tabs(["My Chats","Statistics", "Account"])
     with tab1:
-        # Filters
+        # Filters section
         st.header("My Chats")
-
 
         col1, col2 = st.columns([1,2])
         with col1:
             st.markdown("### 🔍 Filter Your Chats")
-            #Filter by ProjectID
-            # st.markdown("Filter by Project")
+            # Project filter
             if projects_info:
                 project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_info.items()}
                 selected_project_id = st.selectbox(
@@ -121,6 +119,7 @@ def user_app(userid, tables_dict, password):
                 st.markdown("No projects available.")
                 selected_project_id = None
             selected_project = projects_info[selected_project_id]
+            # Platform filter
             selected_platforms = st.pills(
                 "Select Platforms",
                 options=["whatsapp", "signal", "telegram"],
@@ -128,10 +127,12 @@ def user_app(userid, tables_dict, password):
                 key="platform_filter",
                 selection_mode ="multi",
             )
+            # Search filter
             search_text = st.text_input("Search by chat name")
+            # Donation status filter
             donation_filter = st.selectbox("Filter by donation status", ["All", "Donated", "Not Donated"])
             
-            # add donate column
+            # Add Donated column based on chat-project association
             if selected_project_id:
                 chats_df['Donated'] = chats_df['ChatID'].apply(
                     lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
@@ -139,12 +140,12 @@ def user_app(userid, tables_dict, password):
             else:
                 chats_df['Donated'] = False
 
-            # add blacklist column
+            # Add Blacklist column (default False)
             chats_df['Blacklist'] = False
 
             filtered_df = chats_df.copy()
 
-            # Apply filters
+            # Apply all filters to chats DataFrame
             if selected_project_id:
                 if selected_platforms:
                     filtered_df = filtered_df[
@@ -158,6 +159,7 @@ def user_app(userid, tables_dict, password):
                     filtered_df = filtered_df[filtered_df['Donated'] == False]
             
             if st.button("Refresh My Chats"):
+                # Refresh chat lists from web_monitor and update local DB
                 donated_result = asyncio.run(web_monitor.get_invited_chats())
                 not_donated_result = asyncio.run(web_monitor.get_joined_chats())
                 donated_chats = donated_result.get("invited_chats", [])
@@ -167,7 +169,7 @@ def user_app(userid, tables_dict, password):
                 st.rerun()
 
         with col2:
-            # Display and edit table
+            # Display and edit table of chats
             editable_cols = ['Donated', 'Blacklist']
             displayed_cols = ['ChatID', 'Chat Name', 'Platform'] + editable_cols
             st.markdown("### ☑️ Chats Picker")
@@ -184,7 +186,7 @@ def user_app(userid, tables_dict, password):
                 hide_index=True
             )
         with col1:
-            # save changes
+            # Save changes to chat/project/blacklist state
             if not filtered_df.empty and st.button("Save Changes"):
                 for _, row in edited_df.iterrows():
                     chat_id = row["ChatID"]
@@ -194,7 +196,7 @@ def user_app(userid, tables_dict, password):
                         chats.delete_chat(chat_id)
                         st.toast(f"Deleted chat: {row['Chat Name']}", icon="✅")
                         result = asyncio.run(web_monitor.disable_room(chat_id))
-                        chats_blacklist.add_chat_to_blacklist(chat_id)  # add to chats blacklist
+                        chats_blacklist.add_chat(chat_id)  # add to chats blacklist
                         if result.get("status") == "success":
                             st.toast(f"Disabled Chat: {row['Chat Name']}", icon="✅")
                         else:
@@ -221,12 +223,15 @@ def user_app(userid, tables_dict, password):
                             else:
                                 st.toast(f"Failed to disable Chat: {row['Chat Name']}", icon="❌")
                         st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
+                st.rerun()
             
     with tab2:
+        # Statistics tab placeholder
         st.header("Statistics")
         st.write("Statistics content goes here.")
     
     with tab3:
+        # Account tab placeholder
         st.header("Account")
         st.write("Account settings and information.")
 
