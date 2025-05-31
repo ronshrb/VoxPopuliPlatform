@@ -986,6 +986,53 @@ class MultiPlatformMessageMonitor:
         except Exception as e:
             print(f"Error checking if room {room_name} is group: {str(e)}")
             return True
+        
+
+    async def approve_room(self, room_id):
+        """Accept (join) a pending invite to a room."""
+        if not self.access_token:
+            print("Not logged in. Cannot approve room.")
+            return False
+        join_url = f"{self.synapse_url}/_matrix/client/v3/join/{room_id}"
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.post(
+                    join_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"}
+                )
+                if response.status_code == 200:
+                    print(f"Successfully approved (joined) room: {room_id}")
+                    return True
+                else:
+                    print(f"Failed to approve room {room_id}: {response.status_code} - {response.text}")
+                    return False
+            except Exception as e:
+                print(f"Error while approving room {room_id}: {str(e)}")
+                return False
+
+    async def disable_room(self, room_id):
+        """Leave (disable) a room."""
+        if not self.access_token:
+            print("Not logged in. Cannot disable room.")
+            return False
+        leave_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/leave"
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.post(
+                    leave_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"}
+                )
+                if response.status_code == 200:
+                    print(f"Successfully disabled (left) room: {room_id}")
+                    return True
+                else:
+                    print(f"Failed to disable room {room_id}: {response.status_code} - {response.text}")
+                    return False
+            except Exception as e:
+                print(f"Error while disabling room {room_id}: {str(e)}")
+                return False
+
+
 
 # async def main():
 #     parser = argparse.ArgumentParser(

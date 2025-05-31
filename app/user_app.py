@@ -101,7 +101,6 @@ def user_app(userid, tables_dict, password):
         # Filters
         st.header("My Chats")
 
-        filtered_df = chats_df.copy()
 
         col1, col2 = st.columns([1,2])
         with col1:
@@ -129,7 +128,17 @@ def user_app(userid, tables_dict, password):
             )
             search_text = st.text_input("Search by chat name")
             donation_filter = st.selectbox("Filter by donation status", ["All", "Active", "Not Active"])
+            
+            # add active column
+            if selected_project_id:
+                chats_df['Active'] = chats_df['ChatID'].apply(
+                    lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
+                )
+            else:
+                chats_df['Active'] = False
 
+            filtered_df = chats_df.copy()
+            
             # Apply filters
             if selected_project_id:
                 if selected_platforms:
@@ -152,27 +161,8 @@ def user_app(userid, tables_dict, password):
                 chats.update_all_chats(not_donated_chats)
                 st.rerun()
 
-            if not filtered_df.empty and st.button("Save Changes"):
-                for _, row in edited_df.iterrows():
-                    chat_id = row["ChatID"]
-                    original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
-                    if (
-                        row["Active"] != original_row["Active"]
-                    ):
-                        if row["Active"]:
-                            chats_projects.add_chat_project(chat_id=chat_id, project_id=selected_project_id)
-                        else:
-                            chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
-                        st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
-            
         with col2:
             # Display and edit table
-            if selected_project_id:
-                filtered_df['Active'] = filtered_df['ChatID'].apply(
-                    lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
-                )
-            else:
-                filtered_df['Active'] = False
             editable_cols = ['Active']
             displayed_cols = ['ChatID', 'Chat Name', 'Platform'] + editable_cols
             st.markdown("### ☑️ Chats Picker")
@@ -187,4 +177,36 @@ def user_app(userid, tables_dict, password):
                 disabled=["Chat Name"],
                 hide_index=True
             )
+        with col1:
+            # Move Save Changes button and logic here, after edited_df is defined
+            if not filtered_df.empty and st.button("Save Changes"):
+                for _, row in edited_df.iterrows():
+                    chat_id = row["ChatID"]
+                    original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
+                    if row["Active"] != original_row["Active"]:
+                        if row["Active"]:
+                            chats_projects.add_chat_project(chat_id=chat_id, project_id=selected_project_id)
+                            # Accept invite if chat is not already joined
+                            result = asyncio.run(web_monitor.approve_room(chat_id))
+                            if result.get("status") == "success":
+                                st.toast(f"Approved (joined) room: {row['Chat Name']}", icon="✅")
+                            else:
+                                st.toast(f"Failed to approve room: {row['Chat Name']}", icon="❌")
+                        else:
+                            chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
+                            # Disable (leave) the room
+                            result = asyncio.run(web_monitor.disable_room(chat_id))
+                            if result.get("status") == "success":
+                                st.toast(f"Disabled (left) room: {row['Chat Name']}", icon="✅")
+                            else:
+                                st.toast(f"Failed to disable room: {row['Chat Name']}", icon="❌")
+                        st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
+            
+    with tab2:
+        st.header("Statistics")
+        st.write("Statistics content goes here.")
+    
+    with tab3:
+        st.header("Account")
+        st.write("Account settings and information.")
 

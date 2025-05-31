@@ -138,4 +138,26 @@ class WebMonitor:
             return {"status": "success", "invited_chats": invites}
         except Exception as e:
             return {"status": "error", "message": f"Failed to get invited chats: {str(e)}"}
+    
+    async def approve_room(self, room_id):
+        """Approve (join/accept) a pending invite to a room."""
+        try:
+            result = await self.monitor.approve_room(room_id)
+            if result:
+                return {"status": "success", "message": f"Room {room_id} approved (joined) successfully."}
+            else:
+                return {"status": "error", "message": f"Failed to approve (join) room {room_id}."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
+    async def disable_room(self, room_id):
+        """Disable (leave) a room."""
+        try:
+            result = await self.monitor.disable_room(room_id)
+            if result:
+                return {"status": "success", "message": f"Room {room_id} disabled (left) successfully."}
+            else:
+                return {"status": "error", "message": f"Failed to disable (leave) room {room_id}."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
 
