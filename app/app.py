@@ -55,11 +55,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 db_name = "VoxPopuli" # change to your database name
-# Use new table-based classes from dbs.py
-users = dbs.UsersTable()
-projects = dbs.ProjectsTable()
-chats = dbs.ChatsTable()
-user_projects = dbs.UserProjectsTable()
+
+tables_dict = {
+    "Users": dbs.UsersTable(),
+    "Projects": dbs.ProjectsTable(),
+    "Chats": dbs.ChatsTable(),
+    "UserProjects": dbs.UserProjectsTable(),
+    "ChatsProjects": dbs.ChatProjectsTable(),
+}
+
+users, projects, chats, user_projects, chats_projects = (
+    tables_dict["Users"],
+    tables_dict["Projects"],
+    tables_dict["Chats"],
+    tables_dict["UserProjects"],
+    tables_dict["ChatsProjects"]
+)
 
 # Initialize session state for login
 if "logged_in" not in st.session_state:
@@ -156,9 +167,9 @@ if not st.session_state["logged_in"]:
 else:
     # Redirect to the appropriate app based on role
     if st.session_state["role"] == "User":
-        user_app(st.session_state["user"], users, projects, chats, st.session_state['password'])
+        user_app(st.session_state["user"], tables_dict, st.session_state['password'])
     elif st.session_state["role"] == "Researcher":
-        researcher_app(st.session_state["user"], users, projects, user_projects)
+        researcher_app(st.session_state["user"], tables_dict)
 
     # Optional logout button in sidebar
     if st.sidebar.button("Logout", key="main_logout"):

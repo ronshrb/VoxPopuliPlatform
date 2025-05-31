@@ -41,14 +41,19 @@ chats_table = Table(
             Column('userid', String),
             Column('active', Boolean),
             Column('createdat', Date),
-            Column('updatedat', Date),
-            Column('lastupdate', Date)
+            Column('updatedat', Date)
         )
 
 # metadata.create_all(engine)  # Uncomment to create tables if needed
 user_projects_table = Table(
     'user_projects', metadata,
     Column('userid', String, ForeignKey('users.userid', ondelete='CASCADE'), primary_key=True),
+    Column('projectid', String, ForeignKey('projects.projectid', ondelete='CASCADE'), primary_key=True)
+)
+
+chat_projects_table = Table(
+    'chat_projects', metadata,
+    Column('chatid', String, ForeignKey('chats.chatid', ondelete='CASCADE'), primary_key=True),
     Column('projectid', String, ForeignKey('projects.projectid', ondelete='CASCADE'), primary_key=True)
 )
 # Mongo
@@ -238,7 +243,16 @@ class ProjectsTable:
 
     def get_projects(self):
         result = session.execute(select(self.projects_table)).fetchall()
-        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+        return [
+            {
+                'ProjectID': row._mapping['projectid'],
+                'ProjectName': row._mapping['projectname'],
+                'Active': row._mapping['active'],
+                'CreatedAt': row._mapping['createdat'],
+                'LastUpdate': row._mapping['lastupdate'],
+            }
+            for row in result
+        ] if result else []
 
     def get_project_researchers(self, project_id):
         # Return list of researcher IDs for a project from user_projects table
@@ -273,7 +287,7 @@ class ProjectsTable:
                     'ProjectName': row._mapping['projectname'],
                     'Active': row._mapping['active'],
                     'CreatedAt': row._mapping['createdat'],
-                    # Add more fields if needed
+                    'LastUpdate': row._mapping['lastupdate'],
                 }
                 for row in result
             ] if result else []
@@ -289,11 +303,33 @@ class ProjectsTable:
             return {
                 'ProjectID': d.get('projectid'),
                 'ProjectName': d.get('projectname'),
-                'Users': d.get('users'),
                 'Active': d.get('active'),
                 'CreatedAt': d.get('createdat'),
+                'LastUpdate': d.get('lastupdate'),
             }
         return None
+    
+    def get_projects_by_ids(self, project_ids):
+        # Accepts a list of project_ids and returns a dict: {projectid: {ProjectName, Active, CreatedAt, LastUpdate}}
+        if not project_ids:
+            return {}
+        result = session.execute(
+            select(self.projects_table).where(self.projects_table.c.projectid.in_(project_ids))
+        ).fetchall()
+        projects_dict = {}
+        for row in result:
+            d = dict(row._mapping)
+            projects_dict[d['projectid']] = {
+                'ProjectName': d.get('projectname'),
+                'Active': d.get('active'),
+                'CreatedAt': d.get('createdat'),
+                'LastUpdate': d.get('lastupdate'),
+            }
+        return projects_dict
+
+    # def get_project_name_by_id(self, project_id):
+    #     result = session.execute(select(self.projects_table.c.projectname).where(self.projects_table.c.projectid == project_id)).fetchone()
+    #     return result[0] if result else None
 
 class ChatsTable:
     def __init__(self):
@@ -334,17 +370,18 @@ class ChatsTable:
             session.rollback()
             print(f"Error in update_chat_donation: {e}")
 
-    def update_collection(self, chats_dict):
+    def update_all_chats(self, chats_dict, active=False):
         for chat in chats_dict:
             chat_id = chat.get("ChatID")
             chat_name = chat.get("Chat Name")
-            platform = chat.get("Platform")
-            user_id = chat.get("UserID")
-            active = chat.get("Active")
-            if chat_id:
+            chat_in_db = self.get_chat_by_id(chat_id)
+            if chat_in_db: # check if needed to update chat name
+                if chat_in_db['Chat Name'] != chat_name:
+                    self.update_chat_name(chat_id, chat_name)
+            else: # if chat not in db, add it
+                platform = chat.get("Platform")
+                user_id = chat.get("UserID")
                 self.add_chat(chat_id, chat_name, platform, user_id, active)
-            else:
-                self.update_chat_name(chat_id, chat_name)
                 # self.update_chat_donation(chat_id, active)
 
     def get_chats(self):
@@ -393,9 +430,9 @@ class UserProjectsTable:
 
     def get_user_projects(self, user_id):
         result = session.execute(
-            select(self.user_projects_table).where(self.user_projects_table.c.userid == user_id)
+            select(self.user_projects_table.c.projectid).where(self.user_projects_table.c.userid == user_id)
         ).fetchall()
-        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+        return [row[0] for row in result] if result else []
 
     def add_user_to_project(self, user_id, project_id):
         try:
@@ -408,3 +445,69 @@ class UserProjectsTable:
         except Exception as e:
             session.rollback()
             print(f"Error in add_user_to_project: {e}")
+
+class ChatProjectsTable:
+    def __init__(self):
+        self.chat_projects_table = chat_projects_table
+
+    def add_chat_project(self, chat_id, project_id):
+        try:
+            stmt = insert(self.chat_projects_table).values(
+                chatid=chat_id,
+                projectid=project_id
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            if 'duplicate key' not in str(e):
+                print(f"Error in add_chat_project: {e}")
+
+    def remove_chat_project(self, chat_id, project_id):
+        from sqlalchemy import delete
+        try:
+            stmt = delete(self.chat_projects_table).where(
+                (self.chat_projects_table.c.chatid == chat_id) &
+                (self.chat_projects_table.c.projectid == project_id)
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in remove_chat_project: {e}")
+
+    def get_projects_for_chat(self, chat_id):
+        try:
+            result = session.execute(
+                select(self.chat_projects_table.c.projectid).where(self.chat_projects_table.c.chatid == chat_id)
+            ).fetchall()
+            return [row[0] for row in result] if result else []
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_projects_for_chat: {e}")
+            return []
+
+    def get_chats_for_project(self, project_id):
+        try:
+            result = session.execute(
+                select(self.chat_projects_table.c.chatid).where(self.chat_projects_table.c.projectid == project_id)
+            ).fetchall()
+            return [row[0] for row in result] if result else []
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_chats_for_project: {e}")
+            return []
+        
+    def is_chat_in_project(self, chat_id, project_id):
+        try:
+            result = session.execute(
+                select(self.chat_projects_table).where(
+                    (self.chat_projects_table.c.chatid == chat_id) &
+                    (self.chat_projects_table.c.projectid == project_id)
+                )
+            ).fetchone()
+            return result is not None
+        except Exception as e:
+            session.rollback()
+            print(f"Error in is_chat_in_project: {e}")
+            return False

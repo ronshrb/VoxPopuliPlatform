@@ -975,145 +975,113 @@ class MultiPlatformMessageMonitor:
         """Check if a room is a group (not a direct chat). Returns True if group, False if direct chat.
         Uses platform-specific heuristics for Signal and WhatsApp."""
         try:
-            # # Try to get the room name
-            # name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
-            # name_resp = await client.get(
-            #     name_url,
-            #     headers={"Authorization": f"Bearer {self.access_token}"}
-            # )
-            # room_name = None
-            # if name_resp.status_code == 200:
-            #     room_name = name_resp.json().get("name")
-
-            # # Try to determine platform
-            # platform = None
-            # for plat, config in self.bridge_configs.items():
-            #     member_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.member/{config.bot_mxid}"
-            #     member_resp = await client.get(
-            #         member_url,
-            #         headers={"Authorization": f"Bearer {self.access_token}"}
-            #     )
-            #     if member_resp.status_code == 200:
-            #         platform = plat
-            #         break
-            # If room_name is None, assume it's a private chat
-            # wa_pattern = r"(?:\+?\d{7,15} \(WA\)|WhatsApp \(\+?\d{7,15}\))"
-            if not room_name or room_name.strip() == "": # all and signal
+            # if not room_name or room_name.strip() == "":
+            #     return False
+            if 'Signal' in room_name:
                 return False
-            elif '(WA)' in room_name or 'WhatsApp' in room_name: # whatsapp
+            if '(WA)' in room_name or 'WhatsApp' in room_name:
                 return False
             else:
                 return True
-            # # Fallback to old logic
-            # state_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.create"
-            # response = await client.get(
-            #     state_url,
-            #     headers={"Authorization": f"Bearer {self.access_token}"}
-            # )
-            # if response.status_code == 200:
-            #     content = response.json()
-            #     return not content.get("is_direct", False)
-            # else:
-            #     return True
         except Exception as e:
             print(f"Error checking if room {room_name} is group: {str(e)}")
             return True
 
-async def main():
-    parser = argparse.ArgumentParser(
-        description="Monitor messages from multiple messaging platforms via Matrix bridges")
-    parser.add_argument("-u", "--username", required=True, help="Matrix username")
-    parser.add_argument("-p", "--password", required=True, help="Matrix password")
-    parser.add_argument("--server", help=f"Matrix server URL (default: {SYNAPSE_URL})")
-    parser.add_argument("--platforms", nargs='+',
-                        choices=['whatsapp', 'signal', 'telegram'],
-                        default=['whatsapp', 'signal'],
-                        help="Platforms to monitor (default: whatsapp signal)")
-    parser.add_argument("--register", action="store_true", help="Register a new user before logging in")
-    parser.add_argument("--list-invites", action="store_true", help="List pending invites and exit")
-    parser.add_argument("--list-joined", action="store_true", help="List joined rooms and exit")
-    parser.add_argument("--qr",
-                        choices=['whatsapp', 'signal', 'telegram'],
-                        help="Get QR code for login")
+# async def main():
+#     parser = argparse.ArgumentParser(
+#         description="Monitor messages from multiple messaging platforms via Matrix bridges")
+#     parser.add_argument("-u", "--username", required=True, help="Matrix username")
+#     parser.add_argument("-p", "--password", required=True, help="Matrix password")
+#     parser.add_argument("--server", help=f"Matrix server URL (default: {SYNAPSE_URL})")
+#     parser.add_argument("--platforms", nargs='+',
+#                         choices=['whatsapp', 'signal', 'telegram'],
+#                         default=['whatsapp', 'signal'],
+#                         help="Platforms to monitor (default: whatsapp signal)")
+#     parser.add_argument("--register", action="store_true", help="Register a new user before logging in")
+#     parser.add_argument("--list-invites", action="store_true", help="List pending invites and exit")
+#     parser.add_argument("--list-joined", action="store_true", help="List joined rooms and exit")
+#     parser.add_argument("--qr",
+#                         choices=['whatsapp', 'signal', 'telegram'],
+#                         help="Get QR code for login")
 
 
-    args = parser.parse_args()
+#     args = parser.parse_args()
 
-    # Print script info
-    print("=" * 80)
-    print("Multi-Platform Message Monitor")
-    print("=" * 80)
-    print(f"Monitoring platforms: {', '.join(args.platforms)}")
-    print("This script shows ALL messages in your bridge rooms")
-    print("Press Ctrl+C to stop the script")
-    print()
+#     # Print script info
+#     print("=" * 80)
+#     print("Multi-Platform Message Monitor")
+#     print("=" * 80)
+#     print(f"Monitoring platforms: {', '.join(args.platforms)}")
+#     print("This script shows ALL messages in your bridge rooms")
+#     print("Press Ctrl+C to stop the script")
+#     print()
 
-    # Try to connect to server
-    server_url = args.server if args.server else SYNAPSE_URL
+#     # Try to connect to server
+#     server_url = args.server if args.server else SYNAPSE_URL
 
-    monitor = MultiPlatformMessageMonitor(args.username, args.password, server_url, args.platforms)
+#     monitor = MultiPlatformMessageMonitor(args.username, args.password, server_url, args.platforms)
 
-    # Register user if requested
-    if args.register:
-        print("\nAttempting to register user...")
-        registration_data = await monitor.register(args.username, args.password)
-        if not registration_data:
-            print("Registration failed. Exiting.")
-            return
+#     # Register user if requested
+#     if args.register:
+#         print("\nAttempting to register user...")
+#         registration_data = await monitor.register(args.username, args.password)
+#         if not registration_data:
+#             print("Registration failed. Exiting.")
+#             return
 
-    # Login to Matrix
-    print("\nAttempting to log in...")
-    success = await monitor.login()
-    if not success:
-        print("Login failed. Exiting.")
-        return
+#     # Login to Matrix
+#     print("\nAttempting to log in...")
+#     success = await monitor.login()
+#     if not success:
+#         print("Login failed. Exiting.")
+#         return
 
-    # platforms_mapping = {
-    #     'whatsapp': WHATSAPP_BOT_MXID,
-    #     'signal': SIGNAL_BOT_MXID,
-    #     'telegram': TELEGRAM_BOT_MXID
-    # }
-    if args.qr:
-        print("\nGenerating QR code...")
-        await monitor.message_bridge_bot(args.qr)
+#     # platforms_mapping = {
+#     #     'whatsapp': WHATSAPP_BOT_MXID,
+#     #     'signal': SIGNAL_BOT_MXID,
+#     #     'telegram': TELEGRAM_BOT_MXID
+#     # }
+#     if args.qr:
+#         print("\nGenerating QR code...")
+#         await monitor.message_bridge_bot(args.qr)
 
 
-    # # Accept pending invites
-    # print("\nAccepting pending invites...")
-    # await monitor.accept_invites()
-    if args.list_invites:
-            print("\nListing pending invites...")
-            invites = await monitor.list_pending_invites()
-            print(invites)
-            return
+#     # # Accept pending invites
+#     # print("\nAccepting pending invites...")
+#     # await monitor.accept_invites()
+#     if args.list_invites:
+#             print("\nListing pending invites...")
+#             invites = await monitor.list_pending_invites()
+#             print(invites)
+#             return
     
-    if args.list_joined:
-        print("\nListing joined rooms...")
-        joined = await monitor.list_joined_rooms()
-        print(joined)
-        return
+#     if args.list_joined:
+#         print("\nListing joined rooms...")
+#         joined = await monitor.list_joined_rooms()
+#         print(joined)
+#         return
 
-    # # Find bridge rooms
-    # print("\nSearching for bridge rooms...")
-    # success = await monitor.find_bridge_rooms()
-    # if not success:
-    #     print("Failed to find bridge rooms. Make sure:")
-    #     print("1. Your messaging platforms are connected to Matrix via bridges")
-    #     print("2. You have at least one chat visible in your Matrix client")
-    #     print("3. Your credentials and server URL are correct")
-    #     print("4. The bridge bot MXIDs are correct in your environment variables")
-    #     return
+#     # # Find bridge rooms
+#     # print("\nSearching for bridge rooms...")
+#     # success = await monitor.find_bridge_rooms()
+#     # if not success:
+#     #     print("Failed to find bridge rooms. Make sure:")
+#     #     print("1. Your messaging platforms are connected to Matrix via bridges")
+#     #     print("2. You have at least one chat visible in your Matrix client")
+#     #     print("3. Your credentials and server URL are correct")
+#     #     print("4. The bridge bot MXIDs are correct in your environment variables")
+#     #     return
 
-    # # Start monitoring
-    print("\nStarting message monitoring...")
-    await monitor.monitor_messages()
+#     # # Start monitoring
+#     print("\nStarting message monitoring...")
+#     await monitor.monitor_messages()
 
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\nMonitor stopped by user.")
-    except Exception as e:
-        print(f"Fatal error: {str(e)}")
-        print("\nScript ended due to an error.")
+# if __name__ == "__main__":
+#     try:
+#         asyncio.run(main())
+#     except KeyboardInterrupt:
+#         print("\nMonitor stopped by user.")
+#     except Exception as e:
+#         print(f"Fatal error: {str(e)}")
+#         print("\nScript ended due to an error.")
