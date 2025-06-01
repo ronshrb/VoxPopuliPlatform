@@ -103,9 +103,17 @@ def get_researcher_projects(researcher_id):
 
 
 
-def researcher_app(userid, users, projects, user_projects):
+def researcher_app(userid, tables_dict):
     """Main function for the Researcher Dashboard."""
     # Find user by email
+    chats, users, projects, user_projects, chats_projects, chats_blacklist = (
+        tables_dict["Chats"],
+        tables_dict["Users"],
+        tables_dict["Projects"],
+        tables_dict["UserProjects"],
+        tables_dict["ChatsProjects"],
+        tables_dict["ChatsBlacklist"],
+    )
     user_data = users.get_user_by_id(userid)
 
     if not user_data:
@@ -144,34 +152,28 @@ def researcher_app(userid, users, projects, user_projects):
     # Sidebar: Select Project
     st.sidebar.header("Select a Project")
 
-    # Default project selection
-    if "selected_project" not in st.session_state:  # taking the first one by default
-        st.session_state["selected_project"] = projects_by_name[project_names[0]]
-        st.session_state["selected_project_name"] = project_names[0]
+    # Build project_id to name mapping for selectbox
+    project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_by_id.items()}
+    project_ids = list(project_id_to_name.keys())
+    project_names = [project_id_to_name[pid] for pid in project_ids]
 
-    # Allow changing projects
+    # Default project selection
+    if "selected_project_id" not in st.session_state:
+        st.session_state["selected_project_id"] = project_ids[0]
+
+    # Selectbox for project selection by name
     selected_project_name = st.sidebar.selectbox(
         "Project",
         project_names,
-        index=project_names.index(st.session_state["selected_project_name"]),
+        index=project_names.index(project_id_to_name[st.session_state["selected_project_id"]]),
         key="sidebar_project_select"
     )
+    # Map back to project_id
+    selected_project_id = [pid for pid, name in project_id_to_name.items() if name == selected_project_name][0]
+    st.session_state["selected_project_id"] = selected_project_id
 
-    # Update session state if the project changes
-    if selected_project_name != st.session_state["selected_project_name"]:
-        st.session_state["selected_project"] = projects_by_name[selected_project_name]
-        st.session_state["selected_project_name"] = selected_project_name
-        st.rerun()
-
-    # Display selected project information in the sidebar
-    selected_project_id = st.session_state["selected_project"]['ProjectID']
-    # selected_project = next(p for p in projects_by_name.keys() if projects_by_name[p] == selected_project_id)
+    # Initialize messages_coll for the selected project
     messages_coll = dbs.MessagesColl(selected_project_id)
-    st.sidebar.markdown("### Project Information")
-    st.sidebar.markdown(f"**Project Name:** {selected_project_name}")
-    st.sidebar.markdown(f"**Project ID:** {selected_project_id}")
-    # st.sidebar.markdown(f"**Status:** {selected_project['Status']}")
-    # st.sidebar.markdown(f"**Start Date:** {selected_project['StartDate']}")")
 
     # Sidebar menu
     menu = st.sidebar.selectbox(

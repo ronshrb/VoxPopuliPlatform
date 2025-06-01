@@ -39,7 +39,6 @@ chats_table = Table(
             Column('chatname', String),
             Column('platform', String),
             Column('userid', String),
-            Column('active', Boolean),
             Column('createdat', Date),
             Column('updatedat', Date)
         )
@@ -386,7 +385,7 @@ class ChatsTable:
     def __init__(self):
         self.chats_table = chats_table
 
-    def add_chat(self, chat_id, chat_name, platform, user_id, active=False):
+    def add_chat(self, chat_id, chat_name, platform, user_id):
         """
         Add a new chat to the database.
         """
@@ -397,8 +396,7 @@ class ChatsTable:
                 platform=platform,
                 userid=user_id,
                 createdat=datetime.now(),
-                updatedat=datetime.now(),
-                active=active
+                updatedat=datetime.now()
             )
             session.execute(stmt)
             session.commit()
@@ -418,19 +416,19 @@ class ChatsTable:
             session.rollback()
             print(f"Error in update_chat_name: {e}")
 
-    def update_chat_donation(self, chat_id, active):
+    def update_chat_donation(self, chat_id):
         """
         Update the donation (active) status of a chat.
         """
         try:
-            stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(active=active, updatedat=datetime.now())
+            stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(updatedat=datetime.now())
             session.execute(stmt)
             session.commit()
         except Exception as e:
             session.rollback()
             print(f"Error in update_chat_donation: {e}")
 
-    def update_all_chats(self, chats_dict, active=False):
+    def update_all_chats(self, chats_dict):
         """
         Update all chats in the provided list/dict. Adds new chats if not present, updates names if changed.
         """
@@ -444,8 +442,8 @@ class ChatsTable:
             else: # if chat not in db, add it
                 platform = chat.get("Platform")
                 user_id = chat.get("UserID")
-                self.add_chat(chat_id, chat_name, platform, user_id, active)
-                # self.update_chat_donation(chat_id, active)
+                self.add_chat(chat_id, chat_name, platform, user_id)
+                # self.update_chat_donation(chat_id)
 
     def get_chats(self):
         """
@@ -467,8 +465,7 @@ class ChatsTable:
                 'Platform': d.get('platform'),
                 'UserID': d.get('userid'),
                 'CreatedAt': d.get('createdat'),
-                'UpdatedAt': d.get('updatedat'),
-                'Active': d.get('active'),
+                'UpdatedAt': d.get('updatedat')
             }
         return None
 

@@ -52,17 +52,16 @@ def user_app(userid, tables_dict, password):
 
     # Fetch user's chats from the database using ChatsTable
     user_chats = chats.get_chat_by_user(userid)
-    chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'Chat Name', 'Platform', 'UserID', 'CreatedAt', 'UpdatedAt', 'Active'])
+    chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'Chat Name', 'Platform', 'UserID', 'CreatedAt', 'UpdatedAt'])
     columns_renaming = {
         'chatname': 'Chat Name',
         'chatid': 'ChatID',
         'platform': 'Platform',
-        'active': 'Active',
         'createat': 'CreatedAt',
         'updatedat': 'UpdatedAt',
     }
     chats_df.rename(columns=columns_renaming, inplace=True)
-    chats_df = chats_df.drop(columns=['Active'], errors='ignore')  # Drop UserID if it exists
+
     # Fetch project details
     available_projects = user_projects.get_user_projects(userid)
     projects_info = projects.get_projects_by_ids(available_projects)
@@ -203,19 +202,13 @@ def user_app(userid, tables_dict, password):
                             st.toast(f"Disabled Chat: {row['Chat Name']}", icon="✅")
                         else:
                             st.toast(f"Failed to disable chat: {row['Chat Name']}", icon="❌")
-                        st.toast(f"Deleted chat: {row['Chat Name']}", icon="✅")
                         continue
                     original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
                     if row["Donated"] != original_row["Donated"]:
                         if row["Donated"]: 
-                            if not row['Active']:  # Accept invite if chat is not already joined
-                                result = asyncio.run(web_monitor.approve_room(chat_id))
-                                if result.get("status") == "success":
-                                    st.toast(f"Donated Chat: {row['Chat Name']}", icon="✅")
-                                else:
-                                    st.toast(f"Failed to donate chat: {row['Chat Name']}", icon="❌")
-
+                            result = asyncio.run(web_monitor.approve_room(chat_id))
                             chats_projects.add_chat_project(chat_id=chat_id, project_id=selected_project_id)
+                            st.toast(f"Donated Chat: {row['Chat Name']}", icon="✅")
                         else: # Remove chat from project (room is still joined)
                             chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
                             # Disable (leave) the room
