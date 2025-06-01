@@ -1085,6 +1085,33 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while disabling room {room_id}: {str(e)}")
                 return False
 
+    async def delete_user(self):
+        """
+        Delete a user from the Matrix server using the Synapse Admin API.
+        Requires admin access token. If username is None, deletes self.username.
+        """
+        if not ADMIN_ACCESS_TOKEN:
+            print("Admin access token not set. Cannot delete user.")
+            return False
+        user = self.username
+        # Remove port if present in domain
+        domain = self.synapse_url.split('//')[1].split(':')[0]
+        user_id = f"@{user}:{domain}"
+        delete_url = f"{self.synapse_url}/_synapse/admin/v2/users/{user_id}"
+        headers = {"Authorization": f"Bearer {ADMIN_ACCESS_TOKEN}"}
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.delete(delete_url, headers=headers)
+                if response.status_code in [200, 204]:
+                    print(f"Successfully deleted user: {user_id}")
+                    return True
+                else:
+                    print(f"Failed to delete user {user_id}: {response.status_code} - {response.text}")
+                    return False
+            except Exception as e:
+                print(f"Error while deleting user {user_id}: {str(e)}")
+                return False
+
 
 
 # async def main():
