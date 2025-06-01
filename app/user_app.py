@@ -23,7 +23,7 @@ def user_app(userid, tables_dict, password):
         tables_dict["ChatsProjects"],
         tables_dict["ChatsBlacklist"],
     )
-
+    blacklist_ids = chats_blacklist.get_all_ids()
     # Use a persistent web_monitor instance in session state
     if "web_monitor" not in st.session_state:
         # Explicitly set all platforms to ensure bridge_configs is populated
@@ -164,8 +164,10 @@ def user_app(userid, tables_dict, password):
                 not_donated_result = asyncio.run(web_monitor.get_joined_chats())
                 donated_chats = donated_result.get("invited_chats", [])
                 not_donated_chats = not_donated_result.get("joined_chats", [])
-                chats.update_all_chats(donated_chats, chats_blacklist) # add blacklist
-                chats.update_all_chats(not_donated_chats, chats_blacklist)
+                if donated_chats:
+                    chats.update_all_chats(donated_chats)
+                if not_donated_chats:
+                    chats.update_all_chats(not_donated_chats)
                 st.rerun()
 
         with col2:

@@ -805,7 +805,7 @@ class MultiPlatformMessageMonitor:
                 return plat
         return None
 
-    async def list_rooms(self, room_type="joined", group=True, chats_blacklist=None):
+    async def list_rooms(self, room_type="joined", group=True, chats_blacklist=[]):
         """
         List rooms of a given type: 'joined' or 'invited'.
         If group=True, return only group rooms. Adds platform info.
@@ -1022,8 +1022,10 @@ class MultiPlatformMessageMonitor:
         Uses platform-specific heuristics for Signal and WhatsApp.
         """
         try:
-            # if not room_name or room_name.strip() == "":
+            # if not room_name or roosm_name.strip() == "":
             #     return False
+            if not room_name:
+                return None
             if 'Signal' in room_name:
                 return False
             if '(WA)' in room_name or 'WhatsApp' in room_name:
