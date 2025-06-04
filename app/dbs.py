@@ -206,6 +206,21 @@ class UsersTable:
             session.rollback()
             print(f"Error in get_users_by_ids: {e}")
             return []
+        
+    def change_user_password(self, user_id, new_hashed_password):
+        """
+        Change the password for a user.
+        """
+        try:
+            stmt = update(self.users_table).where(self.users_table.c.userid == user_id).values(
+                hashedpassword=new_hashed_password,
+                lastupdate=datetime.now()
+            )
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in change_user_password: {e}")
 
 class ProjectsTable:
     def __init__(self):

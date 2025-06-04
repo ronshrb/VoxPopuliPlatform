@@ -1,12 +1,9 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
-from PIL import Image
-import qrcode
-import dbs
 from web_monitor import WebMonitor  # Import WebMonitor
 import asyncio
 import time
+import bcrypt
 
 
 def user_app(userid, tables_dict, password):
@@ -227,24 +224,83 @@ def user_app(userid, tables_dict, password):
                 st.rerun()
             
     with tab2:
-        # Statistics tab placeholder
+        # Statistics tab
         st.header("Statistics")
-        st.write("Statistics content goes here.")
+        if selected_project_id:
+            # Get chat IDs for this user and project
+            user_chats = chats.get_chat_by_user(userid)
+            user_chat_ids = set(chat['chatid'] for chat in user_chats)
+            project_chat_ids = set(chats_projects.get_chats_for_project(selected_project_id))
+            # Only chats belonging to this user and project
+            relevant_chat_ids = [chat_id for chat_id in user_chat_ids if chat_id in project_chat_ids]
+            if relevant_chat_ids:
+                # Count messages per chat from foo_2025-05-29.jsonl
+                import json
+                from collections import Counter
+                msg_counts = Counter()
+                try:
+                    with open('app\menashe_2025-05-29.jsonl', 'r', encoding='utf-8') as f:
+                        for line in f:
+                            try:
+                                msg = json.loads(line)
+                                room_id = msg.get('room_id')
+                                if room_id:
+                                    msg_counts[room_id] += 1
+                            except Exception:
+                                continue
+                except Exception as e:
+                    st.warning(f"Could not read message file: {e}")
+                with st.spinner("Fetching room statistics..."):
+                    stats_result = asyncio.run(web_monitor.get_room_stats(relevant_chat_ids))
+                if stats_result.get("status") == "success":
+                    stats_df = pd.DataFrame(stats_result["room_stats"])
+                    # Add message count column
+                    stats_df['num_messages'] = stats_df['room_id'].apply(lambda rid: msg_counts.get(rid.split(':')[0], 0))
+                    st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                else:
+                    st.error(f"Failed to fetch room stats: {stats_result.get('message', 'Unknown error')}")
+            else:
+                st.info("No chats found for this project.")
+        else:
+            st.info("Select a project to view statistics.")
+        
     
     with tab3:
         # Account tab placeholder
         st.header("Account")
         st.write("Account settings and information.")
-        st.markdown("---")
-        st.warning("Danger Zone: Deleting your account is irreversible.")
-        if st.button("Delete My Account", type="primary"):
-            with st.spinner("Deleting your account..."):
+        
+        st.markdown('---')
+        st.subheader('Change Password')
+        with st.form('change_password_form'):
+            new_password = st.text_input('New Password', type='password')
+            confirm_password = st.text_input('Confirm New Password', type='password')
+            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            submitted = st.form_submit_button('Change Password')
+            if submitted:
+                if not new_password or not confirm_password:
+                    st.error('Please fill in both password fields.')
+                elif new_password != confirm_password:
+                    st.error('Passwords do not match.')
+                else:
+                    with st.spinner('Changing password...'):
+                        result = asyncio.run(web_monitor.change_password(new_password))
+                        if result.get('status') == 'success':
+                            users.change_user_password(userid, hashed_password)
+                            password = new_password  # Update session state password
+                            st.success('Password changed successfully!')
+                        else:
+                            st.error(f"Failed to change password: {result.get('message', 'Unknown error')}")
+        st.markdown('---')
+        st.warning('Danger Zone: Deleting your account is irreversible.')
+        if st.button('Delete My Account', type='primary'):
+            with st.spinner('Deleting your account...'):
                 result = asyncio.run(web_monitor.delete_user())
-                if result.get("status") == "success":
-                    st.success("Your account has been deleted. Logging out...")
-                    st.session_state["logged_in"] = False
-                    st.session_state["role"] = None
-                    st.session_state["user"] = None
+                if result.get('status') == 'success':
+                    st.success('Your account has been deleted. Logging out...')
+                    st.session_state['logged_in'] = False
+                    st.session_state['role'] = None
+                    st.session_state['user'] = None
                     st.rerun()
                 else:
                     st.error(f"Failed to delete account: {result.get('message', 'Unknown error')}")

@@ -1113,7 +1113,72 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while deleting user {user_id}: {str(e)}")
                 return False
 
+    async def get_room_stats(self, room_ids):
+        """
+        Given a list of room_ids, return a list of dicts with:
+        - room_id
+        - num_members (number of joined members)
+        """
+        if not self.access_token:
+            print("Not logged in. Cannot get room stats.")
+            return []
+        stats = []
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            for room_id in room_ids:
+                # Get number of members
+                members_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/members"
+                try:
+                    members_resp = await client.get(
+                        members_url,
+                        headers={"Authorization": f"Bearer {self.access_token}"}
+                    )
+                    if members_resp.status_code == 200:
+                        members = members_resp.json().get("chunk", [])
+                        num_members = len(members)
+                    else:
+                        num_members = None
+                except Exception as e:
+                    print(f"Error fetching members for room {room_id}: {e}")
+                    num_members = None
+                stats.append({
+                    "room_id": room_id,
+                    "num_members": num_members
+                })
+        return stats
 
+    async def change_password(self, new_password):
+        """
+        Change the password for the current user using the Matrix client API.
+        """
+        if not self.access_token:
+            print("Not logged in. Cannot change password.")
+            return False
+        change_url = f"{self.synapse_url}/_matrix/client/v3/account/password"
+        payload = {
+            "auth": {
+                "type": "m.login.password",
+                "user": self.username,
+                "password": self.password
+            },
+            "new_password": new_password
+        }
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.post(
+                    change_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    json=payload
+                )
+                if response.status_code == 200:
+                    print(f"Password changed successfully for user: {self.username}")
+                    self.password = new_password
+                    return True
+                else:
+                    print(f"Failed to change password: {response.status_code} - {response.text}")
+                    return False
+            except Exception as e:
+                print(f"Error while changing password: {str(e)}")
+                return False
 
 # async def main():
 #     parser = argparse.ArgumentParser(

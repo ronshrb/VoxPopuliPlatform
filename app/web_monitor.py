@@ -172,3 +172,22 @@ class WebMonitor:
                 return {"status": "error", "message": "Failed to delete user."}
         except Exception as e:
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
+    
+    async def get_room_stats(self, room_ids):
+        """Get stats for a list of room_ids (number of members in each room)."""
+        try:
+            stats = await self.monitor.get_room_stats(room_ids)
+            return {"status": "success", "room_stats": stats}
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get room stats: {str(e)}"}
+    
+    async def change_password(self, new_password):
+        """Change the password for the current user via the Matrix API."""
+        try:
+            result = await self.monitor.change_password(new_password)
+            if result:
+                return {"status": "success", "message": "Password changed successfully."}
+            else:
+                return {"status": "error", "message": "Failed to change password."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
