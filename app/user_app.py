@@ -24,8 +24,12 @@ def user_app(userid, tables_dict, password):
         tables_dict["ChatsBlacklist"],
     )
     blacklist_ids = chats_blacklist.get_all_ids()
-    # Use a persistent web_monitor instance in session state
-    if "web_monitor" not in st.session_state:
+    # Use a persistent web_monitor instance in session state, but ensure it matches the current user
+    if (
+        "web_monitor" not in st.session_state
+        or not hasattr(st.session_state["web_monitor"], "username")
+        or st.session_state["web_monitor"].username != userid
+    ):
         # Explicitly set all platforms to ensure bridge_configs is populated
         web_monitor = WebMonitor(username=userid, password=password, platforms=["signal", "whatsapp", "telegram"])
         login_result = asyncio.run(web_monitor.login())
@@ -36,7 +40,9 @@ def user_app(userid, tables_dict, password):
             return
     else:
         web_monitor = st.session_state["web_monitor"]
-
+    # web_monitor = WebMonitor(username=userid, password=password, platforms=["signal", "whatsapp", "telegram"])
+    # login_result = asyncio.run(web_monitor.login())
+    # st.session_state["web_monitor"] = web_monitor
     # Fetch user data from UsersTable
     user_data = users.get_user_by_id(userid)
 
@@ -229,4 +235,18 @@ def user_app(userid, tables_dict, password):
         # Account tab placeholder
         st.header("Account")
         st.write("Account settings and information.")
+        st.markdown("---")
+        st.warning("Danger Zone: Deleting your account is irreversible.")
+        if st.button("Delete My Account", type="primary"):
+            with st.spinner("Deleting your account..."):
+                result = asyncio.run(web_monitor.delete_user())
+                if result.get("status") == "success":
+                    st.success("Your account has been deleted. Logging out...")
+                    st.session_state["logged_in"] = False
+                    st.session_state["role"] = None
+                    st.session_state["user"] = None
+                    st.rerun()
+                else:
+                    st.error(f"Failed to delete account: {result.get('message', 'Unknown error')}")
+
 

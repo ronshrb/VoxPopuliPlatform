@@ -180,6 +180,33 @@ class UsersTable:
         # If you have an Email column, implement this
         return None
 
+    def get_users_by_ids(self, user_ids):
+        """
+        Fetch multiple users by a list of user_ids.
+        Returns a list of user dicts, or an empty list if none found.
+        """
+        if not user_ids:
+            return []
+        try:
+            result = session.execute(
+                select(self.users_table).where(self.users_table.c.userid.in_(user_ids))
+            ).fetchall()
+            users = []
+            for row in result:
+                d = dict(row._mapping)
+                users.append({
+                    'UserID': d.get('userid'),
+                    'Role': d.get('role'),
+                    'Creator': d.get('creator'),
+                    'Active': d.get('active'),
+                    'CreatedAt': d.get('createdat'),
+                })
+            return users
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_users_by_ids: {e}")
+            return []
+
 class ProjectsTable:
     def __init__(self):
         self.projects_table = projects_table
@@ -538,6 +565,20 @@ class UserProjectsTable:
         except Exception as e:
             session.rollback()
             print(f"Error in add_user_to_project: {e}")
+        
+    def get_projects_users(self, project_id):
+        """
+        Get all user IDs associated with a project.
+        """
+        try:
+            result = session.execute(
+                select(self.user_projects_table.c.userid).where(self.user_projects_table.c.projectid == project_id)
+            ).fetchall()
+            return [row[0] for row in result] if result else []
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_projects_users: {e}")
+            return []
 
 class ChatProjectsTable:
     def __init__(self):

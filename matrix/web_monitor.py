@@ -125,3 +125,14 @@ class WebMonitor:
         except Exception as e:
             st.error(f"An error occurred during login: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
+    async def delete_user(self):
+        """Delete the current user from the Matrix server using the Synapse Admin API."""
+        try:
+            result = await self.monitor.delete_user()
+            if result is not None:
+                return {"status": "success", "message": "User deleted successfully.", "data": result}
+            else:
+                return {"status": "error", "message": "Failed to delete user."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}

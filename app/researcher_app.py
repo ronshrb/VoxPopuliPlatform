@@ -6,7 +6,6 @@ import pandas as pd
 from datetime import datetime
 from web_monitor import WebMonitor
 import asyncio
-from m_monitor import MultiPlatformMessageMonitor
 
 
 
@@ -198,97 +197,73 @@ def researcher_app(userid, tables_dict):
         st.header("User Management")
         st.markdown("Manage users in your project.")
 
-        # Fetch users in the project
-        # project_users = dbs.get_users()
+        tab1, tab2 = st.tabs(["Project's Users", "Register New User"])
 
-        # # Display users in the project
-        # st.subheader(f"Users in Project: {selected_project_name}")
-        # if not project_users:
-        #     st.info("No users are currently registered in this project.")
-        # else:
-        #     users_df = pd.DataFrame(project_users)
-        #     st.dataframe(users_df[['UserID', 'Username', 'Email', 'Role', 'Active', 'CreatedAt']])
+        with tab1:
+            # Fetch users in the project
+            project_users = user_projects.get_projects_users(selected_project_id)
+            users_data = users.get_users_by_ids(project_users)
 
-        # st.markdown("---")
+            # Display users in the project
+            st.subheader("Users in Project")
+            if not project_users:
+                st.info("No users are currently registered in this project.")
+            else:
+                users_df = pd.DataFrame(users_data)
+                st.dataframe(users_df[['UserID', 'Role', 'Creator', 'Active', 'CreatedAt']])
 
-        # Form to register a new user
-        st.subheader("Register a New User")
-        with st.form("register_user_form"):
-            # Input fields for registration
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            server_url = "https://vox-populi.dev"
-            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            # Register button
-            submit_button = st.form_submit_button("Register")
-            if submit_button:
-                if not username or not password or not confirm_password:
-                    st.error("Please fill in all fields.")
-                elif password != confirm_password:
-                    st.error("Passwords do not match.")
-                else:
-                    # Run the registration process
-                    with st.spinner("Registering user..."):
-                        try:
-                            # Create a WebMonitor instance with consistent server URL
-                            server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
-                            web_monitor = WebMonitor(
-                                username=username, 
-                                password=password,
-                                server_url=server_url
-                            )
-                            # Properly await the async register method
-                            result = asyncio.run(web_monitor.register())
-                            if result:
-                                users.add_user(
-                                    user_id=username, 
-                                    hashed_password=hashed_password,
-                                    creator_id=userid, 
-                                    role="User",
-                                    active=True,
-                                )
-                                user_projects.add_user_to_project(
-                                    user_id=username, 
-                                    project_id=selected_project_id
-                                )
-                                st.success(f"User {username} registered successfully!")
-                                st.info(f"When logging in, use server URL: {server_url}")
-                            else:
-                                st.error("Registration failed. Username might already exist.")
-                        except Exception as e:
-                            st.error(f"Registration error: {str(e)}")
-            # username = st.text_input("Username", key="new_user_username")
-            # email = st.text_input("Email", key="new_user_email")
-            # password = st.text_input("Password", type="password", key="new_user_password")
-            # confirm_password = st.text_input("Confirm Password", type="password", key="new_user_confirm_password")
-            # role = st.selectbox("Role", ["User", "Researcher"], key="new_user_role")
-            # active = st.checkbox("Active", value=True, key="new_user_active")
 
-            # submit_button = st.form_submit_button("Register User")
-
-            # if submit_button:
-            #     if not username or not email or not password or not confirm_password:
-            #         st.error("Please fill in all fields.")
-            #     elif password != confirm_password:
-            #         st.error("Passwords do not match.")
-            #     else:
-            #         # Hash the password
-            #         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-            #         # Add the user to the database
-            #         try:
-            #             dbs.add_user(
-            #                 email=email,
-            #                 username=username,
-            #                 hashed_password=hashed_password,
-            #                 role=role,
-            #                 active=active
-            #             )
-            #             st.success(f"User {username} registered successfully!")
-            #             st.rerun()
-            #         except Exception as e:
-            #             st.error(f"Error registering user: {str(e)}")
+        with tab2:
+            col1, col2 = st.columns(2)
+            with col1:
+                # Form to register a new user
+                st.subheader("Register a New User")
+                with st.form("register_user_form"):
+                    # Input fields for registration
+                    username = st.text_input("Username")
+                    password = st.text_input("Password", type="password")
+                    confirm_password = st.text_input("Confirm Password", type="password")
+                    server_url = "https://vox-populi.dev"
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    # Register button
+                    submit_button = st.form_submit_button("Register")
+                    if submit_button:
+                        if not username or not password or not confirm_password:
+                            st.error("Please fill in all fields.")
+                        elif password != confirm_password:
+                            st.error("Passwords do not match.")
+                        else:
+                            # Run the registration process
+                            with st.spinner("Registering user..."):
+                                try:
+                                    # Create a WebMonitor instance with consistent server URL
+                                    server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
+                                    web_monitor = WebMonitor(
+                                        username=username, 
+                                        password=password,
+                                        server_url=server_url
+                                    )
+                                    # Properly await the async register method
+                                    result = asyncio.run(web_monitor.register())
+                                    if result:
+                                        users.add_user(
+                                            user_id=username, 
+                                            hashed_password=hashed_password,
+                                            creator_id=userid, 
+                                            role="User",
+                                            active=True,
+                                        )
+                                        user_projects.add_user_to_project(
+                                            user_id=username, 
+                                            project_id=selected_project_id
+                                        )
+                                        st.success(f"User {username} registered successfully!")
+                                        # st.info(f"When logging in, use server URL: {server_url}")
+                                    else:
+                                        st.error("Registration failed. Username might already exist.")
+                                except Exception as e:
+                                    st.error(f"Registration error: {str(e)}")
+           
 
     # Project Creation Page (Blank)
     elif menu == "Project Creation":

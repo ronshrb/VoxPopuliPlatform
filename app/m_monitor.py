@@ -1035,6 +1035,7 @@ class MultiPlatformMessageMonitor:
         except Exception as e:
             print(f"Error checking if room {room_name} is group: {str(e)}")
             return True
+        # return True
         
 
     async def approve_room(self, room_id):
