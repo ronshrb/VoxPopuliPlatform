@@ -42,3 +42,4 @@ sqlalchemy
 pymongo
 python-dotenv
 duckdb
+httpx==0.28.1
