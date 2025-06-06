@@ -646,6 +646,7 @@ class UserProjectsTable:
             session.rollback()
             print(f"Error in get_projects_users: {e}")
             return []
+        
 
 class ChatProjectsTable:
     def __init__(self):
