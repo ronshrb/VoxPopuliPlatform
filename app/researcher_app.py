@@ -6,6 +6,8 @@ import pandas as pd
 from datetime import datetime
 from web_monitor import WebMonitor
 import asyncio
+import requests
+import os
 
 
 
@@ -210,9 +212,41 @@ def researcher_app(userid, tables_dict):
                 st.info("No users are currently registered in this project.")
             else:
                 users_df = pd.DataFrame(users_data)
-                st.dataframe(users_df[['UserID', 'Role', 'Creator', 'Active', 'CreatedAt']])
-
-
+                users_df['Delete'] = False  # Add a column for deletion
+                delete_col_config = st.column_config.CheckboxColumn("Delete", help="Check to delete this user", default=False)
+                edited_users_df = st.data_editor(
+                    users_df[['UserID', 'Role', 'Creator', 'Active', 'CreatedAt', 'Delete']],
+                    use_container_width=True,
+                    num_rows="fixed",
+                    column_config={
+                        'Delete': delete_col_config
+                    },
+                    disabled=['UserID', 'Role', 'Creator', 'Active', 'CreatedAt'],
+                    hide_index=True
+                )
+                # Add Save/Confirm Changes button
+                if st.button("Save Changes", key="save_user_deletions"):
+                    deleted_any = False
+                    for idx, row in edited_users_df.iterrows():
+                        if row['Delete']:
+                            if row['UserID'] == userid:
+                                st.warning("You cannot delete yourself from this page.")
+                                continue
+                            server = os.getenv("SERVER")
+                            try:
+                                requests.post(
+                                    f"{server}/api/user/destroy",
+                                    json={
+                                        "username": row['UserID']
+                                    }
+                                )
+                                users.delete_user(row['UserID'])
+                                st.success(f"User {row['UserID']} deleted successfully.")
+                                deleted_any = True
+                            except Exception as e:
+                                st.error(f"Failed to delete user {row['UserID']}: {str(e)}")
+                    if deleted_any:
+                        st.rerun()
         with tab2:
             col1, col2 = st.columns(2)
             with col1:

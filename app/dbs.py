@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+
 # Remove SQLAlchemy/Postgres setup from here, import from connectors instead
 engine = connectors.engine
 Session = connectors.Session
@@ -122,6 +123,8 @@ class UsersTable:
     def __init__(self):
         self.users_table = users_table
         self.user_projects_table = user_projects_table
+        self.chat_projects_table = chat_projects_table
+        self.chats = chats_table
 
     def add_user(self, user_id, hashed_password, creator_id, role='User', active=True):
         """
@@ -221,6 +224,55 @@ class UsersTable:
         except Exception as e:
             session.rollback()
             print(f"Error in change_user_password: {e}")
+
+    def get_whitelisted_rooms(self, user_id, for_server=False):
+        """
+        Return a list of chat IDs (strings) of the user that appear in chat_projects.
+        """
+        try:
+            # Get all chat IDs for this user from chats table
+            user_chats = session.execute(
+                select(self.chats.c.chatid).where(self.chats.c.userid == user_id)
+            ).fetchall()
+            chat_ids = [row[0] for row in user_chats] if user_chats else []
+            if not chat_ids:
+                return []
+            # Get chat IDs that are also in chat_projects
+            whitelisted_chats = session.execute(
+                select(self.chats.c.chatid)
+                .where(
+                    self.chats.c.chatid.in_(
+                        select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
+                    )
+                )
+            ).fetchall()
+            ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
+            if for_server:
+                ids = [id.split(':')[0].replace('!', '') for id in ids]  # Filter for server IDs
+            return ids
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_whitelisted_rooms: {e}")
+            return []
+        
+    def delete_user(self, user_id):
+        """
+        Delete a user from the database by user_id.
+        """
+        try:
+            # First delete from user_projects association table
+            stmt = delete(self.user_projects_table).where(self.user_projects_table.c.userid == user_id)
+            session.execute(stmt)
+            # Then delete from chats_projects association table
+            stmt = delete(self.chat_projects_table).where(self.chat_projects_table.c.chatid == user_id)
+            session.execute(stmt)
+            # Finally delete from users table
+            stmt = delete(self.users_table).where(self.users_table.c.userid == user_id)
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in delete_user: {e}")
 
 class ProjectsTable:
     def __init__(self):
@@ -622,16 +674,22 @@ class ChatProjectsTable:
             if 'duplicate key' not in str(e):
                 print(f"Error in add_chat_project: {e}")
 
-    def remove_chat_project(self, chat_id, project_id):
+    def remove_chat_project(self, chat_id, project_id=None):
         """
         Remove a chat-project association.
         """
         
         try:
-            stmt = delete(self.chat_projects_table).where(
-                (self.chat_projects_table.c.chatid == chat_id) &
-                (self.chat_projects_table.c.projectid == project_id)
-            )
+            if project_id:
+                stmt = delete(self.chat_projects_table).where(
+                    (self.chat_projects_table.c.chatid == chat_id) &
+                    (self.chat_projects_table.c.projectid == project_id)
+                )
+
+            else:
+                stmt = delete(self.chat_projects_table).where(
+                    self.chat_projects_table.c.chatid == chat_id
+                )
             session.execute(stmt)
             session.commit()
         except Exception as e:

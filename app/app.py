@@ -16,6 +16,7 @@ from researcher_app import researcher_app
 # from register_app import register_page
 import dbs
 
+
 # Custom CSS for styling
 st.markdown("""
 <style>

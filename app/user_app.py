@@ -4,7 +4,12 @@ from web_monitor import WebMonitor  # Import WebMonitor
 import asyncio
 import time
 import bcrypt
+import requests
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
+server = os.getenv("SERVER")
 
 def user_app(userid, tables_dict, password):
     """
@@ -120,7 +125,7 @@ def user_app(userid, tables_dict, password):
             else:
                 st.markdown("No projects available.")
                 selected_project_id = None
-            selected_project = projects_info[selected_project_id]
+            selected_project = projects_info[selected_project_id] if selected_project_id is not None else None
             # Platform filter
             selected_platforms = st.pills(
                 "Select Platforms",
@@ -221,6 +226,13 @@ def user_app(userid, tables_dict, password):
                             else:
                                 st.toast(f"Failed to disable Chat: {row['Chat Name']}", icon="❌")
                         st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
+                requests.post(
+                    f"{server}/api/user/whitelist-rooms",
+                    json={
+                        "username": userid,
+                        "room_ids": users.get_whitelisted_rooms(userid, for_server=True)
+                    }
+                )
                 st.rerun()
             
     with tab2:
@@ -267,42 +279,94 @@ def user_app(userid, tables_dict, password):
     
     with tab3:
         # Account tab placeholder
-        st.header("Account")
-        st.write("Account settings and information.")
+        st.header("Account Settings")
         
         st.markdown('---')
-        st.subheader('Change Password')
-        with st.form('change_password_form'):
-            new_password = st.text_input('New Password', type='password')
-            confirm_password = st.text_input('Confirm New Password', type='password')
-            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            submitted = st.form_submit_button('Change Password')
-            if submitted:
-                if not new_password or not confirm_password:
-                    st.error('Please fill in both password fields.')
-                elif new_password != confirm_password:
-                    st.error('Passwords do not match.')
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            with st.form('change_password_form'):
+                st.subheader('Change Password')
+                new_password = st.text_input('New Password', type='password')
+                confirm_password = st.text_input('Confirm New Password', type='password')
+                hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                submitted = st.form_submit_button('Change Password')
+                if submitted:
+                    if not new_password or not confirm_password:
+                        st.error('Please fill in both password fields.')
+                    elif new_password != confirm_password:
+                        st.error('Passwords do not match.')
+                    else:
+                        with st.spinner('Changing password...'):
+                            result = asyncio.run(web_monitor.change_password(new_password))
+                            if result.get('status') == 'success':
+                                users.change_user_password(userid, hashed_password)
+                                password = new_password  # Update session state password
+                                st.success('Password changed successfully!')
+                            else:
+                                st.error(f"Failed to change password: {result.get('message', 'Unknown error')}")
+
+        with col2:
+            with st.form('Leave Project'):
+                st.subheader('Leave Project')
+                if available_projects:
+                    project_ids = [pid for pid in available_projects if pid in projects_info]
+                    project_names = [projects_info[pid]['ProjectName'] for pid in project_ids]
+                    selected_project = st.selectbox('Select Project to Leave', project_names, key='leave_project_select')
                 else:
-                    with st.spinner('Changing password...'):
-                        result = asyncio.run(web_monitor.change_password(new_password))
-                        if result.get('status') == 'success':
-                            users.change_user_password(userid, hashed_password)
-                            password = new_password  # Update session state password
-                            st.success('Password changed successfully!')
-                        else:
-                            st.error(f"Failed to change password: {result.get('message', 'Unknown error')}")
+                    st.info('You are not part of any projects.')
+                    selected_project = None
+
+                submitted = st.form_submit_button('Leave Project')
+                if submitted and selected_project:
+                    project_id = next(pid for pid, name in zip(project_ids, project_names) if name == selected_project)
+                    with st.spinner(f'Leaving project {selected_project}...'):
+                        user_projects.remove_user_project(userid, project_id)
+                        st.success(f'You have left the project: {selected_project}')
+                        st.rerun()
+        with col3:
+            with st.form('Disable All Chats'):
+                st.subheader('Disable All Chats')
+                st.warning('This will disable all of your donated chats from all the projects.')
+                if st.form_submit_button('Disable All Chats'):
+                    with st.spinner('Disabling all chats...'):
+                        try:
+                            requests.post(
+                            f"{server}/api/user/whitelist-rooms",
+                            json={
+                                "username": userid,
+                                "room_ids": []
+                            }
+                        )
+                            users.get_whitelisted_rooms(userid, for_server=True)
+                            chats_projects.remove_chat_project(userid)
+                            
+                        except Exception as e:
+                            st.error(f"An error occurred while disabling chats: {str(e)}")
+
         st.markdown('---')
         st.warning('Danger Zone: Deleting your account is irreversible.')
         if st.button('Delete My Account', type='primary'):
             with st.spinner('Deleting your account...'):
-                result = asyncio.run(web_monitor.delete_user())
-                if result.get('status') == 'success':
+                try:
+                    requests.post(f"{server}/api/user/destroy",
+                        json={
+                            "username": userid
+                        }
+                    )
+                    users.delete_user(userid)
                     st.success('Your account has been deleted. Logging out...')
-                    st.session_state['logged_in'] = False
-                    st.session_state['role'] = None
-                    st.session_state['user'] = None
+                    st.session_state["logged_in"] = False
+                    st.session_state["role"] = None
+                    st.session_state["user"] = None
                     st.rerun()
-                else:
-                    st.error(f"Failed to delete account: {result.get('message', 'Unknown error')}")
+                # result = asyncio.run(web_monitor.delete_user())
+                # if result.get('status') == 'success':
+                #     st.success('Your account has been deleted. Logging out...')
+                #     st.session_state['logged_in'] = False
+                #     st.session_state['role'] = None
+                #     st.session_state['user'] = None
+                #     st.rerun()
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Failed to delete account: {str(e)}")
 
 

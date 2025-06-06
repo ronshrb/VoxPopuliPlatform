@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 import uuid # For RoomID, assuming it's a string like UUID
 
@@ -162,3 +163,44 @@ if __name__ == "__main__":
     # Use `debug=True` for development, but turn it off for production
     print("Starting Python Mock API Server...")
     app.run(host="0.0.0.0", port=5001, debug=True)
+
+    # user, pass = client.login  # this is when you register a user to synapse, our matrix server, the server should return user credentials (username and password / access token)
+    # # /_synapse/admin/v1/users
+
+    # body = {
+    #     "username": user,
+    #     "password": pass
+    # }  # this is the user's credentials, replace password with access token if this is the received data from the login.
+    # requests.post("{server}/api/user/create", body=body)
+
+    # ...
+
+    # whitelist_chats = list(input("what room ids"))  # this is a streamlit input in your code, I am just using input here for simplicity
+
+    # requests.post(
+    #     "{server}/api/user/whitelist-rooms"
+    #     body={
+    #         "user": user,
+    #         "rooms": whitelist_chats
+    #     }
+    # )
+
+    # ...
+
+    # remove_whitelist_chats = list(input("what room ids to remove from whitelist"))  # this is a streamlit input in your code, I am just using input here for simplicity
+    # requests.post("{server}/api/user/remove-rooms",
+    #     body={
+    #         "user": user,
+    #         "rooms": remove_whitelist_chats
+    #     }
+    # )
+
+
+    # ...
+
+    # user_to_destroy = input("what user to destroy")  # this is a streamlit input in your code, I am just using input here for simplicity
+    # requests.post("{server}/api/user/destroy",
+    #     body={
+    #         "user": user_to_destroy
+    #     }
+    # )
