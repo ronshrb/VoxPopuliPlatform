@@ -96,7 +96,7 @@ if not st.session_state["logged_in"]:
             unsafe_allow_html=True)
 
     # Create two columns for layout
-    col1, spacer, col2, spacer, col3 = st.columns([0.8, 0.2, 1, 0.2, 1])
+    col1, spacer, col2, spacer, col3 = st.columns([0.8, 0.2, 0.8, 0.2, 0.8])
 
     # Column 1: Login Form
     with col1:

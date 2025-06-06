@@ -10,6 +10,7 @@ import requests
 import os
 
 
+server = os.getenv("SERVER")
 
 def register_user(username, password):
     """Register a new user in the database."""
@@ -232,7 +233,6 @@ def researcher_app(userid, tables_dict):
                             if row['UserID'] == userid:
                                 st.warning("You cannot delete yourself from this page.")
                                 continue
-                            server = os.getenv("SERVER")
                             try:
                                 requests.post(
                                     f"{server}/api/user/destroy",
@@ -278,9 +278,9 @@ def researcher_app(userid, tables_dict):
                                         server_url=server_url
                                     )
                                     # Properly await the async register method
-                                    result = asyncio.run(web_monitor.register())
+                                    result = asyncio.run(web_monitor.register()) # register on server
                                     if result:
-                                        users.add_user(
+                                        users.add_user(  # register user in the database
                                             user_id=username, 
                                             hashed_password=hashed_password,
                                             creator_id=userid, 
@@ -291,6 +291,12 @@ def researcher_app(userid, tables_dict):
                                             user_id=username, 
                                             project_id=selected_project_id
                                         )
+
+                                        json = {   # send to server
+                                            "username": userid,
+                                            "password": password
+                                        }  # this is the user's credentials, replace password with access token if this is the received data from the login.
+                                        requests.post(f"{server}/api/user/create", json=json)
                                         st.success(f"User {username} registered successfully!")
                                         # st.info(f"When logging in, use server URL: {server_url}")
                                     else:

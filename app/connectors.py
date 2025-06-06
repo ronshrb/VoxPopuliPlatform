@@ -4,9 +4,12 @@ from sqlalchemy.orm import sessionmaker
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+from google.cloud import storage
 
 load_dotenv()
 
+cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
 # class postgres_connector:
 #     def __init__(self):
 #         self.connector = Connector()
@@ -41,6 +44,23 @@ class mongo_connector():
     
     def get_table(self, db_name, collection_name):
         return self.client[db_name][collection_name]
+
+
+class gcp_connector:
+    def __init__(self):
+        self.client = storage.Client()
+        self.bucket_name = "chats.vox-populi.dev"
+    def get_buckets(self):
+        """Returns a list of bucket names."""
+        return [bucket.name for bucket in self.client.list_buckets()]
+    def get_bucket(self):
+        """Returns a specific bucket."""
+        return self.client.get_bucket(self.bucket_name)
+    
+d = gcp_connector()
+print(d.get_buckets())
+# d.get_bucket()
+    
 
 POSTGRES_URI = os.getenv("POSTGRES_URI")
 engine = create_engine(POSTGRES_URI)

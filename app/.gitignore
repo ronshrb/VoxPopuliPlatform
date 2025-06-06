@@ -3,3 +3,5 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+*\seminar-e2ee-c512ad746086.json
