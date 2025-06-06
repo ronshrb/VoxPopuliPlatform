@@ -7,8 +7,6 @@
 import asyncio
 import os
 import json
-import argparse
-import time
 import httpx
 from datetime import datetime, timezone
 import logging
