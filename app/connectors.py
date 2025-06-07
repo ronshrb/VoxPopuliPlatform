@@ -8,6 +8,10 @@ from google.cloud import storage
 
 load_dotenv()
 bucket_name = os.getenv("BUCKET_NAME")
+users_db_user = os.getenv("users_db_user")
+users_db_pass = os.getenv("users_db_pass")
+db_name = os.getenv("db_name") 
+matrix_db_connection_string = os.getenv("matrix-db-connection-string")
 
 # cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
@@ -65,10 +69,29 @@ class gcp_connector:
 # print(d.get_bucket())
     
 
-POSTGRES_URI = os.getenv("POSTGRES_URI")
-engine = create_engine(POSTGRES_URI)
+# POSTGRES_URI = os.getenv("POSTGRES_URI")
+# engine = create_engine(POSTGRES_URI)
+# Session = sessionmaker(bind=engine)
+# session = Session()
+# metadata = MetaData()
+
+def getconn():
+    with Connector() as connector:
+        conn = connector.connect(
+            matrix_db_connection_string,  # Cloud SQL connection name
+            "pg8000",
+            user=users_db_user,
+            password=users_db_pass,
+            db=db_name
+        )
+        return conn
+
+engine = create_engine(
+    "postgresql+pg8000://",
+    creator=getconn,
+)
+
 Session = sessionmaker(bind=engine)
 session = Session()
 metadata = MetaData()
-
 
