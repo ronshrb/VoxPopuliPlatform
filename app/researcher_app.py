@@ -264,7 +264,7 @@ def researcher_app(userid, tables_dict):
                     password = st.text_input("Password", type="password")
                     confirm_password = st.text_input("Confirm Password", type="password")
                     server_url = "https://vox-populi.dev"
-                    allowed_pattern = r'^[a-z0-9=_.\-/+]$'
+                    allowed_pattern = r'^[a-z0-9=_.\-/+]+$'
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     # Register button
                     submit_button = st.form_submit_button("Register")
