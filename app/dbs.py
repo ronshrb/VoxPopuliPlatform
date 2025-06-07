@@ -535,6 +535,7 @@ class ChatsTable:
                 if chat_in_db['Chat Name'] != chat_name:
                     self.update_chat_name(chat_id, chat_name)
             else: # if chat not in db, add it
+                print('test')
                 platform = chat.get("Platform")
                 user_id = chat.get("UserID")
                 self.add_chat(chat_id, chat_name, platform, user_id)

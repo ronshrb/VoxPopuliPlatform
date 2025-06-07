@@ -305,8 +305,13 @@ def researcher_app(userid, tables_dict):
                                             "username": userid,
                                             "password": password
                                         }  # this is the user's credentials, replace password with access token if this is the received data from the login.
-                                        requests.post(f"{server}/api/user/create", json=json)
-                                        st.success(f"User {username} registered successfully!")
+                                        result = requests.post(f"{server}/api/user/create", json=json)
+                                        print(result.json())
+                                        if result.json().get("status") != "success":
+                                            st.error(f"Error registering user on server: {result.json().get('message', 'Unknown error')}")
+                                            return
+                                        else:
+                                            st.success(f"User {username} registered successfully!")
                                         # st.info(f"When logging in, use server URL: {server_url}")
                                     else:
                                         st.error("Registration failed. Username might already exist.")

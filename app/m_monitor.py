@@ -632,7 +632,10 @@ class MultiPlatformMessageMonitor:
                 print("Waiting for QR code message...")
                 await asyncio.sleep(10)  # Wait for the QR code message to arrive
 
-                # if platform
+                if platform == 'telegram':
+                    await client.post(message_url, json={"msgtype": "m.text", "body": phone_number})
+
+
 
                 # Step 4: Retrieve the QR code from the room's messages
                 room_events_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/messages"
@@ -1207,111 +1210,111 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while getting room name for {room_id}: {str(e)}")
                 return None
 
-async def main():
-    parser = argparse.ArgumentParser(
-        description="Monitor messages from multiple messaging platforms via Matrix bridges")
-    parser.add_argument("-u", "--username", required=True, help="Matrix username")
-    parser.add_argument("-p", "--password", required=True, help="Matrix password")
-    parser.add_argument("--server", help=f"Matrix server URL (default: {SYNAPSE_URL})")
-    parser.add_argument("--platforms", nargs='+',
-                        choices=['whatsapp', 'signal', 'telegram'],
-                        default=['whatsapp', 'signal'],
-                        help="Platforms to monitor (default: whatsapp signal)")
-    parser.add_argument("--register", action="store_true", help="Register a new user before logging in")
-    parser.add_argument("--list-invites", action="store_true", help="List pending invites and exit")
-    parser.add_argument("--list-joined", action="store_true", help="List joined rooms and exit")
-    parser.add_argument("--qr",
-                        choices=['whatsapp', 'signal', 'telegram'],
-                        help="Get QR code for login")
-    parser.add_argument("--room-name", metavar="ROOM_ID", help="Check if a room exists and print its name")
+# async def main():
+#     parser = argparse.ArgumentParser(
+#         description="Monitor messages from multiple messaging platforms via Matrix bridges")
+#     parser.add_argument("-u", "--username", required=True, help="Matrix username")
+#     parser.add_argument("-p", "--password", required=True, help="Matrix password")
+#     parser.add_argument("--server", help=f"Matrix server URL (default: {SYNAPSE_URL})")
+#     parser.add_argument("--platforms", nargs='+',
+#                         choices=['whatsapp', 'signal', 'telegram'],
+#                         default=['whatsapp', 'signal'],
+#                         help="Platforms to monitor (default: whatsapp signal)")
+#     parser.add_argument("--register", action="store_true", help="Register a new user before logging in")
+#     parser.add_argument("--list-invites", action="store_true", help="List pending invites and exit")
+#     parser.add_argument("--list-joined", action="store_true", help="List joined rooms and exit")
+#     parser.add_argument("--qr",
+#                         choices=['whatsapp', 'signal', 'telegram'],
+#                         help="Get QR code for login")
+#     parser.add_argument("--room-name", metavar="ROOM_ID", help="Check if a room exists and print its name")
 
 
-    args = parser.parse_args()
+#     args = parser.parse_args()
 
-    # Print script info
-    print("=" * 80)
-    print("Multi-Platform Message Monitor")
-    print("=" * 80)
-    print(f"Monitoring platforms: {', '.join(args.platforms)}")
-    print("This script shows ALL messages in your bridge rooms")
-    print("Press Ctrl+C to stop the script")
-    print()
+#     # Print script info
+#     print("=" * 80)
+#     print("Multi-Platform Message Monitor")
+#     print("=" * 80)
+#     print(f"Monitoring platforms: {', '.join(args.platforms)}")
+#     print("This script shows ALL messages in your bridge rooms")
+#     print("Press Ctrl+C to stop the script")
+#     print()
 
-    # Try to connect to server
-    server_url = args.server if args.server else SYNAPSE_URL
+#     # Try to connect to server
+#     server_url = args.server if args.server else SYNAPSE_URL
 
-    monitor = MultiPlatformMessageMonitor(args.username, args.password, server_url, args.platforms)
+#     monitor = MultiPlatformMessageMonitor(args.username, args.password, server_url, args.platforms)
 
-    # Register user if requested
-    if args.register:
-        print("\nAttempting to register user...")
-        registration_data = await monitor.register(args.username, args.password)
-        if not registration_data:
-            print("Registration failed. Exiting.")
-            return
+#     # Register user if requested
+#     if args.register:
+#         print("\nAttempting to register user...")
+#         registration_data = await monitor.register(args.username, args.password)
+#         if not registration_data:
+#             print("Registration failed. Exiting.")
+#             return
 
-    # Login to Matrix
-    print("\nAttempting to log in...")
-    success = await monitor.login()
-    if not success:
-        print("Login failed. Exiting.")
-        return
+#     # Login to Matrix
+#     print("\nAttempting to log in...")
+#     success = await monitor.login()
+#     if not success:
+#         print("Login failed. Exiting.")
+#         return
 
-    # platforms_mapping = {
-    #     'whatsapp': WHATSAPP_BOT_MXID,
-    #     'signal': SIGNAL_BOT_MXID,
-    #     'telegram': TELEGRAM_BOT_MXID
-    # }
-    if args.qr:
-        print("\nGenerating QR code...")
-        await monitor.message_bridge_bot(args.qr)
+#     # platforms_mapping = {
+#     #     'whatsapp': WHATSAPP_BOT_MXID,
+#     #     'signal': SIGNAL_BOT_MXID,
+#     #     'telegram': TELEGRAM_BOT_MXID
+#     # }
+#     if args.qr:
+#         print("\nGenerating QR code...")
+#         await monitor.message_bridge_bot(args.qr)
 
 
-    # # Accept pending invites
-    # print("\nAccepting pending invites...")
-    # await monitor.accept_invites()
-    if args.list_invites:
-            print("\nListing pending invites...")
-            invites = await monitor.list_pending_invites()
-            print(invites)
-            return
+#     # # Accept pending invites
+#     # print("\nAccepting pending invites...")
+#     # await monitor.accept_invites()
+#     if args.list_invites:
+#             print("\nListing pending invites...")
+#             invites = await monitor.list_pending_invites()
+#             print(invites)
+#             return
     
-    if args.list_joined:
-        print("\nListing joined rooms...")
-        joined = await monitor.list_joined_rooms()
-        print(joined)
-        return
+#     if args.list_joined:
+#         print("\nListing joined rooms...")
+#         joined = await monitor.list_joined_rooms()
+#         print(joined)
+#         return
 
-    # # Find bridge rooms
-    # print("\nSearching for bridge rooms...")
-    # success = await monitor.find_bridge_rooms()
-    # if not success:
-    #     print("Failed to find bridge rooms. Make sure:")
-    #     print("1. Your messaging platforms are connected to Matrix via bridges")
-    #     print("2. You have at least one chat visible in your Matrix client")
-    #     print("3. Your credentials and server URL are correct")
-    #     print("4. The bridge bot MXIDs are correct in your environment variables")
-    #     return
+#     # # Find bridge rooms
+#     # print("\nSearching for bridge rooms...")
+#     # success = await monitor.find_bridge_rooms()
+#     # if not success:
+#     #     print("Failed to find bridge rooms. Make sure:")
+#     #     print("1. Your messaging platforms are connected to Matrix via bridges")
+#     #     print("2. You have at least one chat visible in your Matrix client")
+#     #     print("3. Your credentials and server URL are correct")
+#     #     print("4. The bridge bot MXIDs are correct in your environment variables")
+#     #     return
 
-    # # Start monitoring
-    print("\nStarting message monitoring...")
-    await monitor.monitor_messages()
+#     # # Start monitoring
+#     print("\nStarting message monitoring...")
+#     await monitor.monitor_messages()
 
-    if args.room_name:
-        print(f"\nChecking room name for ID: {args.room_name}")
-        room_name = await monitor.get_room_name(args.room_name)
-        if room_name:
-            print(f"Room name: {room_name}")
-        else:
-            print("Room does not exist or has no name.")
-        return
+#     if args.room_name:
+#         print(f"\nChecking room name for ID: {args.room_name}")
+#         room_name = await monitor.get_room_name(args.room_name)
+#         if room_name:
+#             print(f"Room name: {room_name}")
+#         else:
+#             print("Room does not exist or has no name.")
+#         return
 
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\nMonitor stopped by user.")
-    except Exception as e:
-        print(f"Fatal error: {str(e)}")
-        print("\nScript ended due to an error.")
+# if __name__ == "__main__":
+#     try:
+#         asyncio.run(main())
+#     except KeyboardInterrupt:
+#         print("\nMonitor stopped by user.")
+#     except Exception as e:
+#         print(f"Fatal error: {str(e)}")
+#         print("\nScript ended due to an error.")

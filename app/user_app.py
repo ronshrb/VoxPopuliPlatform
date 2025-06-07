@@ -170,8 +170,8 @@ def user_app(userid, tables_dict, password):
                 # Refresh chat lists from web_monitor and update local DB
                 donated_result = asyncio.run(web_monitor.get_invited_chats())
                 not_donated_result = asyncio.run(web_monitor.get_joined_chats())
-                donated_chats = donated_result.get("invited_chats", [])
-                not_donated_chats = not_donated_result.get("joined_chats", [])
+                not_donated_chats = donated_result.get("invited_chats", [])
+                donated_chats = not_donated_result.get("joined_chats", [])
                 if donated_chats:
                     chats.update_all_chats(donated_chats)
                 if not_donated_chats:
