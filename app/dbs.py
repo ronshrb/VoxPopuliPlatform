@@ -731,6 +731,8 @@ class ChatProjectsTable:
         """
         if not project_ids:
             return []
+        if type(project_ids) is not list:
+            project_ids = [project_ids]
         try:
             result = session.execute(
                 select(self.chat_projects_table.c.chatid).where(self.chat_projects_table.c.projectid.in_(project_ids))

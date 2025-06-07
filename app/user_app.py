@@ -243,7 +243,7 @@ def user_app(userid, tables_dict, password):
             # Get chat IDs for this user and project
             user_chats = chats.get_chat_by_user(userid)
             user_chat_ids = set(chat['chatid'] for chat in user_chats)
-            project_chat_ids = set(chats_projects.get_chats_for_project(selected_project_id))
+            project_chat_ids = set(chats_projects.get_chats_ids_by_projects(selected_project_id))
             # Only chats belonging to this user and project
             relevant_chat_ids = [chat_id for chat_id in user_chat_ids if chat_id in project_chat_ids]
             if relevant_chat_ids:
