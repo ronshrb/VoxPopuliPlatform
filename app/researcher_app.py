@@ -302,7 +302,7 @@ def researcher_app(userid, tables_dict):
                                         )
 
                                         json = {   # send to server
-                                            "username": userid,
+                                            "username": username,
                                             "password": password
                                         }  # this is the user's credentials, replace password with access token if this is the received data from the login.
                                         result = requests.post(f"{server}/api/user/create", json=json)
