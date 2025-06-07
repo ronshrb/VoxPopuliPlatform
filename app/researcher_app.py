@@ -306,8 +306,7 @@ def researcher_app(userid, tables_dict):
                                             "password": password
                                         }  # this is the user's credentials, replace password with access token if this is the received data from the login.
                                         result = requests.post(f"{server}/api/user/create", json=json)
-                                        print(result.json())
-                                        if result.json().get("status") != "success":
+                                        if not result.json().get("success"):
                                             st.error(f"Error registering user on server: {result.json().get('message', 'Unknown error')}")
                                             return
                                         else:
