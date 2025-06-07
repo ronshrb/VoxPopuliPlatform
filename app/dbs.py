@@ -5,6 +5,7 @@ import connectors
 import duckdb
 import os
 from dotenv import load_dotenv
+from io import StringIO
 load_dotenv()
 
 
@@ -711,20 +712,34 @@ class ChatProjectsTable:
             print(f"Error in get_projects_for_chat: {e}")
             return []
 
-    def get_chats_for_project(self, project_id):
+    # def get_chats_for_project(self, project_id):
+    #     """
+    #     Get all chat IDs associated with a project.
+    #     """
+    #     try:
+    #         result = session.execute(
+    #             select(self.chat_projects_table.c.chatid).where(self.chat_projects_table.c.projectid == project_id)
+    #         ).fetchall()
+    #         return [row[0] for row in result] if result else []
+    #     except Exception as e:
+    #         session.rollback()
+    #         print(f"Error in get_chats_for_project: {e}")
+    #         return []
+    def get_chats_ids_by_projects(self, project_ids):
         """
-        Get all chat IDs associated with a project.
+        Get all chat IDs associated with a list of project IDs.
         """
+        if not project_ids:
+            return []
         try:
             result = session.execute(
-                select(self.chat_projects_table.c.chatid).where(self.chat_projects_table.c.projectid == project_id)
+                select(self.chat_projects_table.c.chatid).where(self.chat_projects_table.c.projectid.in_(project_ids))
             ).fetchall()
             return [row[0] for row in result] if result else []
         except Exception as e:
             session.rollback()
-            print(f"Error in get_chats_for_project: {e}")
+            print(f"Error in get_chats_ids_by_projects: {e}")
             return []
-        
     def is_chat_in_project(self, chat_id, project_id):
         """
         Check if a chat is associated with a project.
@@ -787,3 +802,65 @@ class ChatsBlacklistTable:
             session.rollback()
             if 'duplicate key' not in str(e):
                 print(f"Error in add_id: {e}")
+
+
+class MessagesTable:
+    def __init__(self):
+        self.gcp_connector = connectors.gcp_connector()
+        self.client = self.gcp_connector.get_client()
+        self.bucket = self.gcp_connector.get_bucket()
+
+    def blob_to_dataframe(self, blob_name):
+        """
+        Download a NDJSON file from GCP bucket and load it into a pandas DataFrame.
+        """
+        blob = self.bucket.blob(blob_name)
+        data = blob.download_as_bytes()
+        df = pd.read_json(StringIO(data.decode('utf-8')), lines=True)
+        return df
+    
+    def get_df(self, user_ids=None, chat_ids=None):
+        blobs = self.bucket.list_blobs()
+        selected_blobs = [blob for blob in blobs if 
+                          (user_ids is None or blob.name.split('/')[0] in user_ids) and 
+                          (chat_ids is None or (len(blob.name.split('/')) > 1 and 
+                                                blob.name.split('/')[1] in chat_ids))]
+        df = None
+        for blob in selected_blobs:
+            path = blob.name
+            # user = path.split('/')[0]
+            # chat_id = path.split('/')[1] if len(path.split('/')) > 1 else None
+            # date = path.split('/')[2].split('.')[0] if len(path.split('/')) > 2 else None
+            if df:
+                df = pd.concat([df, self.blob_to_dataframe(path)], ignore_index=True)
+            else:
+                df = self.blob_to_dataframe(path)
+        return df
+    
+    def get_chats_summary(self, user_ids=None, chat_ids=None):
+        """
+        Get a summary of messages grouped by chat ID and user ID.
+        """
+        df = self.get_df(user_ids, chat_ids)
+        if df.empty:
+            return pd.DataFrame()
+        
+        # Group by chat_id and user_id, counting messages
+        summary = df.groupby(['room_id', 'sender_id']).size().reset_index(name='message_count')
+        summary.rename(columns={'room_id': 'ChatID', 'sender_id': 'UserID'}, inplace=True)
+        return summary
+
+# d = Messages()
+# print(d.get_df())
+    # def get_messages_by_user(self, user_id, blob_name):
+    #     """
+    #     Fetch messages for a specific user from a NDJSON file in GCP bucket.
+    #     """
+    #     bucket = self.client.bucket(self.bucket_name)
+    #     blob = bucket.blob(blob_name)
+    #     data = blob.download_as_bytes()
+    #     # Convert bytes to StringIO for pandas
+    #     df = pd.read_json(StringIO(data.decode('utf-8')), lines=True)
+    #     # Filter by user_id if needed
+    #     df = df[df['username'] == user_id]
+    #     return df

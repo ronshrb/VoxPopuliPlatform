@@ -17,6 +17,7 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 from io import BytesIO
 import qrcode
+import argparse
 
 # from matrix import m_monitor
 
@@ -803,7 +804,7 @@ class MultiPlatformMessageMonitor:
                 return plat
         return None
 
-    async def list_rooms(self, room_type="joined", group=True, chats_blacklist=[]):
+    async def list_rooms(self, room_type="joined", group=False, chats_blacklist=[]):
         """
         List rooms of a given type: 'joined' or 'invited'.
         If group=True, return only group rooms. Adds platform info.
@@ -1178,6 +1179,32 @@ class MultiPlatformMessageMonitor:
                 print(f"Error while changing password: {str(e)}")
                 return False
 
+    async def get_room_name(self, room_id):
+        """
+        Check if a room ID exists and return the room name if it does, else return None.
+        """
+        if not self.access_token:
+            print("Not logged in. Cannot get room name.")
+            return None
+        name_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state/m.room.name"
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.get(
+                    name_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"}
+                )
+                if response.status_code == 200:
+                    return response.json().get("name")
+                elif response.status_code == 404:
+                    print(f"Room {room_id} does not exist or has no name.")
+                    return None
+                else:
+                    print(f"Failed to get room name for {room_id}: {response.status_code} - {response.text}")
+                    return None
+            except Exception as e:
+                print(f"Error while getting room name for {room_id}: {str(e)}")
+                return None
+
 # async def main():
 #     parser = argparse.ArgumentParser(
 #         description="Monitor messages from multiple messaging platforms via Matrix bridges")
@@ -1194,6 +1221,7 @@ class MultiPlatformMessageMonitor:
 #     parser.add_argument("--qr",
 #                         choices=['whatsapp', 'signal', 'telegram'],
 #                         help="Get QR code for login")
+#     parser.add_argument("--room-name", metavar="ROOM_ID", help="Check if a room exists and print its name")
 
 
 #     args = parser.parse_args()
@@ -1266,6 +1294,15 @@ class MultiPlatformMessageMonitor:
 #     # # Start monitoring
 #     print("\nStarting message monitoring...")
 #     await monitor.monitor_messages()
+
+#     if args.room_name:
+#         print(f"\nChecking room name for ID: {args.room_name}")
+#         room_name = await monitor.get_room_name(args.room_name)
+#         if room_name:
+#             print(f"Room name: {room_name}")
+#         else:
+#             print("Room does not exist or has no name.")
+#         return
 
 
 # if __name__ == "__main__":

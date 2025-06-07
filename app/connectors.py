@@ -50,17 +50,19 @@ class mongo_connector():
 class gcp_connector:
     def __init__(self):
         self.client = storage.Client()
-        self.bucket_name = bucket_name
-    def get_buckets(self):
-        """Returns a list of bucket names."""
-        return [bucket.name for bucket in self.client.list_buckets()]
-    def get_bucket(self):
-        """Returns a specific bucket."""
-        return self.client.get_bucket(self.bucket_name)
+        self.bucket = self.client.bucket(bucket_name)
+
+    def get_client(self):
+        return self.client
     
-d = gcp_connector()
-print(d.get_buckets())
-# d.get_bucket()
+    def get_bucket(self):
+        return self.bucket
+    
+
+    
+# d = gcp_connector()
+# print(d.get_buckets())
+# print(d.get_bucket())
     
 
 POSTGRES_URI = os.getenv("POSTGRES_URI")

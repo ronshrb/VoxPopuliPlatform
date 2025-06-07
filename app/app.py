@@ -64,6 +64,7 @@ tables_dict = {
     "UserProjects": dbs.UserProjectsTable(),
     "ChatsProjects": dbs.ChatProjectsTable(),
     "ChatsBlacklist": dbs.ChatsBlacklistTable(),
+    "MessagesTable": dbs.MessagesTable(),
 }
 
 users, projects, chats, user_projects, chats_projects, chats_blacklist = (

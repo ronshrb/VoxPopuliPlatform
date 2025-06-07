@@ -108,13 +108,14 @@ def get_researcher_projects(researcher_id):
 def researcher_app(userid, tables_dict):
     """Main function for the Researcher Dashboard."""
     # Find user by email
-    chats, users, projects, user_projects, chats_projects, chats_blacklist = (
+    chats, users, projects, user_projects, chats_projects, chats_blacklist, messages = (
         tables_dict["Chats"],
         tables_dict["Users"],
         tables_dict["Projects"],
         tables_dict["UserProjects"],
         tables_dict["ChatsProjects"],
         tables_dict["ChatsBlacklist"],
+        tables_dict["MessagesTable"]
     )
     user_data = users.get_user_by_id(userid)
 
@@ -174,8 +175,10 @@ def researcher_app(userid, tables_dict):
     selected_project_id = [pid for pid, name in project_id_to_name.items() if name == selected_project_name][0]
     st.session_state["selected_project_id"] = selected_project_id
 
-    # Initialize messages_coll for the selected project
-    messages_coll = dbs.MessagesColl(selected_project_id)
+    curr_chat_ids = chats_projects.get_chats_ids_by_projects(selected_project_id)
+    # messages_df = messages.get_df(chats_ids=curr_chat_ids)
+    messages_df = messages.get_df(chat_ids=['hovOAmJBtnOuQFpvBu'])
+    # chats_summary = 
 
     # Sidebar menu
     menu = st.sidebar.selectbox(
@@ -187,13 +190,13 @@ def researcher_app(userid, tables_dict):
     if menu == "Project Analytics":
         st.header("Project Analytics")
         st.markdown("This page is under construction.")
-        st.dataframe(messages_coll.get_chats_info(), use_container_width=True, hide_index=True)
+        st.dataframe(messages_df, use_container_width=True, hide_index=True)
 
     # Chat Analysis Page
     elif menu == "Chat Analysis":
         st.header("Chat Analysis")
         st.markdown("Analyze chats for the selected project.")
-        st.dataframe(messages_coll.get_chats_info(), use_container_width=True)
+        st.dataframe(messages_df, use_container_width=True)
 
     # User Management Page
     elif menu == "User Management":
