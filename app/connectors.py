@@ -7,9 +7,10 @@ import os
 from google.cloud import storage
 
 load_dotenv()
+bucket_name = os.getenv("BUCKET_NAME")
 
-cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
+# cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
 # class postgres_connector:
 #     def __init__(self):
 #         self.connector = Connector()
@@ -49,7 +50,7 @@ class mongo_connector():
 class gcp_connector:
     def __init__(self):
         self.client = storage.Client()
-        self.bucket_name = "chats.vox-populi.dev"
+        self.bucket_name = bucket_name
     def get_buckets(self):
         """Returns a list of bucket names."""
         return [bucket.name for bucket in self.client.list_buckets()]
