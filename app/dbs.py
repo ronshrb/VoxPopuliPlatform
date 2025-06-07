@@ -839,18 +839,22 @@ class MessagesTable:
                 df = self.blob_to_dataframe(path)
         return df
     
-    def get_chats_summary(self, user_ids=None, chat_ids=None):
+    def get_chats_summary(self, df):
         """
         Get a summary of messages grouped by chat ID and user ID.
         """
-        df = self.get_df(user_ids, chat_ids)
         if df.empty:
-            return pd.DataFrame()
-        
-        # Group by chat_id and user_id, counting messages
-        summary = df.groupby(['room_id', 'sender_id']).size().reset_index(name='message_count')
-        summary.rename(columns={'room_id': 'ChatID', 'sender_id': 'UserID'}, inplace=True)
-        return summary
+            return pd.DataFrame(columns=['Chat ID', 'User ID', 'Total Messages'])
+        else:
+            summary = df.groupby(['room_id', 'username']).size().reset_index(name='Total Messages')
+            summary.columns = ['Chat ID', 'User', 'Total Messages']
+            summary['Chat ID'] = summary['Chat ID'].astype(str)
+            summary['User'] = summary['User'].astype(str)
+            summary.sort_values(by=['Chat ID', 'User'], inplace=True)
+            summary.reset_index(drop=True, inplace=True)
+            # Convert to PascalCase for compatibility
+            summary.columns = [col.replace(' ', '') for col in summary.columns]
+            return summary
 
 # d = Messages()
 # print(d.get_df())

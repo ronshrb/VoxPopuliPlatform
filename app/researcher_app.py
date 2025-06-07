@@ -8,6 +8,7 @@ from web_monitor import WebMonitor
 import asyncio
 import requests
 import os
+import re
 
 
 server = os.getenv("SERVER")
@@ -178,6 +179,7 @@ def researcher_app(userid, tables_dict):
     curr_chat_ids = chats_projects.get_chats_ids_by_projects(selected_project_id)
     # messages_df = messages.get_df(chats_ids=curr_chat_ids)
     messages_df = messages.get_df(chat_ids=['hovOAmJBtnOuQFpvBu'])
+    chats_summary = messages.get_chats_summary(messages_df)
     # chats_summary = 
 
     # Sidebar menu
@@ -190,7 +192,7 @@ def researcher_app(userid, tables_dict):
     if menu == "Project Analytics":
         st.header("Project Analytics")
         st.markdown("This page is under construction.")
-        st.dataframe(messages_df, use_container_width=True, hide_index=True)
+        st.dataframe(chats_summary, use_container_width=True, hide_index=True)
 
     # Chat Analysis Page
     elif menu == "Chat Analysis":
@@ -255,12 +257,14 @@ def researcher_app(userid, tables_dict):
             with col1:
                 # Form to register a new user
                 st.subheader("Register a New User")
+                st.info("Usernames may only contain: a-z, 0-9, = _ - . / +")
                 with st.form("register_user_form"):
                     # Input fields for registration
                     username = st.text_input("Username")
                     password = st.text_input("Password", type="password")
                     confirm_password = st.text_input("Confirm Password", type="password")
                     server_url = "https://vox-populi.dev"
+                    allowed_pattern = r'^[a-z0-9=_.\-/+]$'
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                     # Register button
                     submit_button = st.form_submit_button("Register")
@@ -269,6 +273,8 @@ def researcher_app(userid, tables_dict):
                             st.error("Please fill in all fields.")
                         elif password != confirm_password:
                             st.error("Passwords do not match.")
+                        elif not re.match(allowed_pattern, username):
+                            st.error("Username can only contain: a-z, 0-9, = _ - . / +")
                         else:
                             # Run the registration process
                             with st.spinner("Registering user..."):
