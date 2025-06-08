@@ -172,6 +172,7 @@ class MultiPlatformMessageMonitor:
         """
         Log in to Matrix and obtain an access token for API calls.
         """
+        print(f"MMonitor: Logging in using {self.username}")
         login_url = f"{self.synapse_url}/_matrix/client/v3/login"
 
         # Extract domain from server URL
@@ -815,6 +816,7 @@ class MultiPlatformMessageMonitor:
         If group=True, return only group rooms. Adds platform info.
         Filters out blacklisted rooms.
         """
+        print(f"MMonitor: Listing rooms for user {self.username}")
         if not self.access_token:
             print(f"Not logged in. Cannot list {room_type} rooms.")
             return []

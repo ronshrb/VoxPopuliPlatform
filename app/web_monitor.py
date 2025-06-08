@@ -20,6 +20,7 @@ class WebMonitor:
         )
 
     async def login(self):
+        print(f"WebMonitor: Logging in using user {self.username}")
         """Log in to the Matrix server."""
         success = await self.monitor.login()
         if success:
@@ -125,6 +126,7 @@ class WebMonitor:
     
     async def get_joined_chats(self, group=True, chats_blacklist=[]):
         """Return a list of joined rooms/chats with platform info."""
+        print(f"WebMonitor: Get joined chats for user {self.username}") 
         try:
             joined = await self.monitor.list_rooms(room_type="joined", group=group, chats_blacklist=chats_blacklist)
             return {"status": "success", "joined_chats": joined}
@@ -132,6 +134,7 @@ class WebMonitor:
             return {"status": "error", "message": f"Failed to get joined chats: {str(e)}"}
 
     async def get_invited_chats(self, group=True, chats_blacklist=[]):
+        print(f"WebMonitor: Get invited chats for user {self.username}") 
         """Return a list of invited (pending) rooms/chats with platform info."""
         try:
             invites = await self.monitor.list_rooms(room_type="invited", group=group, chats_blacklist=chats_blacklist)
