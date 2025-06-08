@@ -227,11 +227,14 @@ def user_app(userid, tables_dict, password):
                             else:
                                 st.toast(f"Failed to disable Chat: {row['Chat Name']}", icon="❌")
                         st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
+                print("Whitelisting:")
+                for room in users.get_whitelisted_rooms(userid, for_server=False):
+                    print(f' - {room}')
                 requests.post(
                     f"{server}/api/user/whitelist-rooms",
                     json={
                         "username": userid,
-                        "room_ids": users.get_whitelisted_rooms(userid, for_server=True)
+                        "room_ids": users.get_whitelisted_rooms(userid, for_server=False)
                     }
                 )
                 st.rerun()
