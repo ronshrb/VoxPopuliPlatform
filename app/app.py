@@ -59,18 +59,14 @@ tables_dict = {
     "Users": dbs.UsersTable(),
     "Projects": dbs.ProjectsTable(),
     "Chats": dbs.ChatsTable(),
-    "UserProjects": dbs.UserProjectsTable(),
-    "ChatsProjects": dbs.ChatProjectsTable(),
     "ChatsBlacklist": dbs.ChatsBlacklistTable(),
     "MessagesTable": dbs.MessagesTable(),
 }
 
-users, projects, chats, user_projects, chats_projects, chats_blacklist = (
+users, projects, chats, chats_blacklist = (
     tables_dict["Users"],
     tables_dict["Projects"],
     tables_dict["Chats"],
-    tables_dict["UserProjects"],
-    tables_dict["ChatsProjects"],
     tables_dict["ChatsBlacklist"],
 )
 

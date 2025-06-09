@@ -46,18 +46,6 @@ chats_table = Table(
             Column('active', Boolean, default=False)  # Assuming 'active' is a boolean for donation status
         )
 
-# metadata.create_all(engine)  # Uncomment to create tables if needed
-user_projects_table = Table(
-    'user_projects', metadata,
-    Column('userid', String, ForeignKey('users.userid', ondelete='CASCADE'), primary_key=True),
-    Column('projectid', String, ForeignKey('projects.projectid', ondelete='CASCADE'), primary_key=True)
-)
-
-chat_projects_table = Table(
-    'chat_projects', metadata,
-    Column('chatid', String, ForeignKey('chats.chatid', ondelete='CASCADE'), primary_key=True),
-    Column('projectid', String, ForeignKey('projects.projectid', ondelete='CASCADE'), primary_key=True)
-)
 
 chats_blacklist_table = Table(
     'chats_blacklist', metadata,
@@ -124,8 +112,6 @@ chats_blacklist_table = Table(
 class UsersTable:
     def __init__(self):
         self.users_table = users_table
-        self.user_projects_table = user_projects_table
-        self.chat_projects_table = chat_projects_table
         self.chats = chats_table
 
     def add_user(self, user_id, hashed_password, creator_id, role='User', active=True):
@@ -298,13 +284,7 @@ class UsersTable:
         Delete a user from the database by user_id.
         """
         try:
-            # First delete from user_projects association table
-            stmt = delete(self.user_projects_table).where(self.user_projects_table.c.userid == user_id)
-            session.execute(stmt)
-            # Then delete from chats_projects association table
-            stmt = delete(self.chat_projects_table).where(self.chat_projects_table.c.chatid == user_id)
-            session.execute(stmt)
-            # Finally delete from users table
+            # delete from users table
             stmt = delete(self.users_table).where(self.users_table.c.userid == user_id)
             session.execute(stmt)
             session.commit()
@@ -315,7 +295,6 @@ class UsersTable:
 class ProjectsTable:
     def __init__(self):
         self.projects_table = projects_table
-        self.user_projects_table = user_projects_table
 
     def add_project(self, project_id, desc, researchers=None, active=True):
         """
@@ -338,37 +317,37 @@ class ProjectsTable:
             session.rollback()
             print(f"Error in add_project: {e}")
 
-    def add_researcher(self, project_id, researcher_id):
-        """
-        Add a researcher to a project in the user_projects table.
-        """
-        try:
-            stmt = insert(self.user_projects_table).values(
-                userid=researcher_id,
-                projectid=project_id
-            )
-            session.execute(stmt)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            if 'duplicate key' not in str(e):
-                print(f"Error in add_researcher: {e}")
+    # def add_researcher(self, project_id, researcher_id):
+    #     """
+    #     Add a researcher to a project in the user_projects table.
+    #     """
+    #     try:
+    #         stmt = insert(self.user_projects_table).values(
+    #             userid=researcher_id,
+    #             projectid=project_id
+    #         )
+    #         session.execute(stmt)
+    #         session.commit()
+    #     except Exception as e:
+    #         session.rollback()
+    #         if 'duplicate key' not in str(e):
+    #             print(f"Error in add_researcher: {e}")
 
-    def remove_researcher(self, project_id, researcher_id):
-        """
-        Remove a researcher from a project in the user_projects table.
-        """
-        try:
-            from sqlalchemy import delete
-            stmt = delete(self.user_projects_table).where(
-                (self.user_projects_table.c.userid == researcher_id) &
-                (self.user_projects_table.c.projectid == project_id)
-            )
-            session.execute(stmt)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            print(f"Error in remove_researcher: {e}")
+    # def remove_researcher(self, project_id, researcher_id):
+    #     """
+    #     Remove a researcher from a project in the user_projects table.
+    #     """
+    #     try:
+    #         from sqlalchemy import delete
+    #         stmt = delete(self.user_projects_table).where(
+    #             (self.user_projects_table.c.userid == researcher_id) &
+    #             (self.user_projects_table.c.projectid == project_id)
+    #         )
+    #         session.execute(stmt)
+    #         session.commit()
+    #     except Exception as e:
+    #         session.rollback()
+    #         print(f"Error in remove_researcher: {e}")
 
     def add_user(self, project_id, user_id):
         """
@@ -420,53 +399,53 @@ class ProjectsTable:
             for row in result
         ] if result else []
 
-    def get_project_researchers(self, project_id):
-        """
-        Get a list of researcher IDs associated with a project.
-        """
-        # Return list of researcher IDs for a project from user_projects table
-        try:
-            result = session.execute(
-                select(self.user_projects_table.c.userid).where(self.user_projects_table.c.projectid == project_id)
-            ).fetchall()
-            return [row[0] for row in result] if result else []
-        except Exception as e:
-            session.rollback()
-            print(f"Error in get_project_researchers: {e}")
-            return []
+    # def get_project_researchers(self, project_id):
+    #     """
+    #     Get a list of researcher IDs associated with a project.
+    #     """
+    #     # Return list of researcher IDs for a project from user_projects table
+    #     try:
+    #         result = session.execute(
+    #             select(self.user_projects_table.c.userid).where(self.user_projects_table.c.projectid == project_id)
+    #         ).fetchall()
+    #         return [row[0] for row in result] if result else []
+    #     except Exception as e:
+    #         session.rollback()
+    #         print(f"Error in get_project_researchers: {e}")
+    #         return []
 
-    def get_projects_by_researcher(self, researcher_id):
-        """
-        Get a list of projects for a given researcher.
-        """
-        # Return list of projects for a given researcher from user_projects table
-        try:
-            # Get all project IDs for this researcher
-            result = session.execute(
-                select(self.user_projects_table.c.projectid).where(self.user_projects_table.c.userid == researcher_id)
-            ).fetchall()
-            project_ids = [row[0] for row in result] if result else []
-            if not project_ids:
-                return []
-            # Now fetch project details for these IDs
-            result = session.execute(
-                select(self.projects_table).where(self.projects_table.c.projectid.in_(project_ids))
-            ).fetchall()
-            # Return PascalCase keys for app compatibility
-            return [
-                {
-                    'ProjectID': row._mapping['projectid'],
-                    'ProjectName': row._mapping['projectname'],
-                    'Active': row._mapping['active'],
-                    'CreatedAt': row._mapping['createdat'],
-                    'LastUpdate': row._mapping['lastupdate'],
-                }
-                for row in result
-            ] if result else []
-        except Exception as e:
-            session.rollback()
-            print(f"Error in get_projects_by_researcher: {e}")
-            return []
+    # def get_projects_by_researcher(self, researcher_id):
+    #     """
+    #     Get a list of projects for a given researcher.
+    #     """
+    #     # Return list of projects for a given researcher from user_projects table
+    #     try:
+    #         # Get all project IDs for this researcher
+    #         result = session.execute(
+    #             select(self.user_projects_table.c.projectid).where(self.user_projects_table.c.userid == researcher_id)
+    #         ).fetchall()
+    #         project_ids = [row[0] for row in result] if result else []
+    #         if not project_ids:
+    #             return []
+    #         # Now fetch project details for these IDs
+    #         result = session.execute(
+    #             select(self.projects_table).where(self.projects_table.c.projectid.in_(project_ids))
+    #         ).fetchall()
+    #         # Return PascalCase keys for app compatibility
+    #         return [
+    #             {
+    #                 'ProjectID': row._mapping['projectid'],
+    #                 'ProjectName': row._mapping['projectname'],
+    #                 'Active': row._mapping['active'],
+    #                 'CreatedAt': row._mapping['createdat'],
+    #                 'LastUpdate': row._mapping['lastupdate'],
+    #             }
+    #             for row in result
+    #         ] if result else []
+    #     except Exception as e:
+    #         session.rollback()
+    #         print(f"Error in get_projects_by_researcher: {e}")
+    #         return []
 
     def get_project_by_id(self, project_id):
         """
@@ -668,17 +647,7 @@ class ChatsTable:
             chat_ids = [row[0] for row in active_chats] if active_chats else []
             if not chat_ids:
                 return []
-            # Get chat IDs that are also in chat_projects
-            whitelisted_chats = session.execute(
-                select(self.chats.c.chatid)
-                .where(
-                    self.chats.c.chatid.in_(
-                        select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
-                    )
-                )
-            ).fetchall()
-            ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
-            return ids
+            return chat_ids
         except Exception as e:
             session.rollback()
             print(f"Error in get_whitelisted_rooms: {e}")

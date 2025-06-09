@@ -17,12 +17,10 @@ def user_app(userid, tables_dict, password):
     Handles chat/project management, QR code generation, and user actions.
     """
     # Unpack table objects from tables_dict
-    chats, users, projects, user_projects, chats_projects, chats_blacklist, messages = (
+    chats, users, projects, chats_blacklist, messages = (
         tables_dict["Chats"],
         tables_dict["Users"],
         tables_dict["Projects"],
-        tables_dict["UserProjects"],
-        tables_dict["ChatsProjects"],
         tables_dict["ChatsBlacklist"],
         tables_dict["MessagesTable"]
     )

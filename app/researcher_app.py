@@ -37,12 +37,10 @@ def register_user(username, password):
 def researcher_app(userid, tables_dict):
     """Main function for the Researcher Dashboard."""
     # tables
-    chats, users, projects, user_projects, chats_projects, chats_blacklist, messages = (
+    chats, users, projects, chats_blacklist, messages = (
         tables_dict["Chats"],
         tables_dict["Users"],
         tables_dict["Projects"],
-        tables_dict["UserProjects"],
-        tables_dict["ChatsProjects"],
         tables_dict["ChatsBlacklist"],
         tables_dict["MessagesTable"]
     )
