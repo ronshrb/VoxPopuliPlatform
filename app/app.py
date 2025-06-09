@@ -120,6 +120,8 @@ if not st.session_state["logged_in"]:
 
 
                 if user_data:
+                    if not user_data['Active']:
+                        st.error("User was disabled. Please check with the project's owners.")
                     # Get the stored hash from the database
                     stored_hashed_password = user_data['HashedPassword']
                     user_role = user_data['Role']

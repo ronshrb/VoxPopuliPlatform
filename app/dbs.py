@@ -42,7 +42,8 @@ chats_table = Table(
             Column('platform', String),
             Column('userid', String),
             Column('createdat', Date),
-            Column('updatedat', Date)
+            Column('updatedat', Date),
+            Column('active', Boolean, default=False)  # Assuming 'active' is a boolean for donation status
         )
 
 # metadata.create_all(engine)  # Uncomment to create tables if needed
@@ -63,62 +64,62 @@ chats_blacklist_table = Table(
     Column('chatid', String, primary_key=True)
 )
 # Mongo
-mongo_conn = connectors.mongo_connector()
+# mongo_conn = connectors.mongo_connector()
 
-class MongoDBCollection:
-    def __init__(self, db_name, collection_name):
-        self.client = mongo_conn.get_client()
-        self.collection = mongo_conn.get_table(db_name, collection_name)
-        self.collection_df = pd.DataFrame(list(self.collection.find()))
+# class MongoDBCollection:
+#     def __init__(self, db_name, collection_name):
+#         self.client = mongo_conn.get_client()
+#         self.collection = mongo_conn.get_table(db_name, collection_name)
+#         self.collection_df = pd.DataFrame(list(self.collection.find()))
     
-    def get_collection(self):
-        return self.collection_df
+#     def get_collection(self):
+#         return self.collection_df
     
-    def get_collection_df(self):
-        return pd.DataFrame(list(self.collection.find()))
+#     def get_collection_df(self):
+#         return pd.DataFrame(list(self.collection.find()))
     
-    def get_collection_by_id(self, item_id):
-        item = self.collection.find_one({"_id": item_id})
-        return item if item else None
+#     def get_collection_by_id(self, item_id):
+#         item = self.collection.find_one({"_id": item_id})
+#         return item if item else None
     
-    def add_item(self, item_data):
-        self.collection.insert_one(item_data)
+#     def add_item(self, item_data):
+#         self.collection.insert_one(item_data)
     
-    def update_item(self, item_id, update_data):
-        self.collection.update_one({"_id": item_id}, {"$set": update_data})
+#     def update_item(self, item_id, update_data):
+#         self.collection.update_one({"_id": item_id}, {"$set": update_data})
     
-    def delete_item(self, item_id):
-        self.collection.delete_one({"_id": item_id})
+#     def delete_item(self, item_id):
+#         self.collection.delete_one({"_id": item_id})
 
-class MessagesColl(MongoDBCollection):
-    def __init__(self, project_id):
-        super().__init__('VoxPopuli', project_id)
+# # class MessagesColl(MongoDBCollection):
+#     def __init__(self, project_id):
+#         super().__init__('VoxPopuli', project_id)
     
-    def get_messages(self):
-        return self.collection_df
+#     def get_messages(self):
+#         return self.collection_df
     
-    def get_messages_by_user(self, userid):
-        pass
+#     def get_messages_by_user(self, userid):
+#         pass
 
-    def get_chats_info(self):
-        # Register the DataFrame as a DuckDB table
-        duckdb.register("messages_table", self.collection_df)
+#     def get_chats_info(self):
+#         # Register the DataFrame as a DuckDB table
+#         duckdb.register("messages_table", self.collection_df)
         
-        # Define the query
-        q = """
-        SELECT room_id "Chat ID", room_name "Chat Name", COUNT(event_id) AS "Total Messages", platform Platform
-        FROM messages_table
-        GROUP BY room_id, room_name, platform
-        """
+#         # Define the query
+#         q = """
+#         SELECT room_id "Chat ID", room_name "Chat Name", COUNT(event_id) AS "Total Messages", platform Platform
+#         FROM messages_table
+#         GROUP BY room_id, room_name, platform
+#         """
 
-        return duckdb.query(q).to_df()
+#         return duckdb.query(q).to_df()
     
-    def get_users(self):
-        q = f"""
-        SELECT DISTINCT sender_id, sender_name
-        FROM {self.messages_df}
-        """
-        return duckdb.query(q).to_df()
+#     def get_users(self):
+#         q = f"""
+#         SELECT DISTINCT sender_id, sender_name
+#         FROM {self.messages_df}
+#         """
+#         return duckdb.query(q).to_df()
     
 class UsersTable:
     def __init__(self):
@@ -150,8 +151,46 @@ class UsersTable:
         """
         Fetch all users as a DataFrame.
         """
-        result = session.execute(select(self.users_table)).fetchall()
-        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+        # Fetch from SQLAlchemy, then rename columns as required
+        result = session.execute(select(
+            self.users_table.c.userid,
+            self.users_table.c.role,
+            self.users_table.c.creator,
+            self.users_table.c.active,
+            self.users_table.c.createdat,
+            self.users_table.c.lastupdate
+        )).fetchall()
+        columns = ['UserID', 'Role', 'Creator', 'Active', 'CreatedAt', 'UpdatedAt']
+        if result:
+            df = pd.DataFrame(result, columns=columns)
+        else:
+            df = pd.DataFrame(columns=columns)
+        return df
+    
+    def change_active_status_for_user(self, user_id):
+        """
+        Change the active status for a user.
+        """
+        try:
+            # Fetch current status
+            result = session.execute(
+                select(self.users_table.c.active).where(self.users_table.c.userid == user_id)
+            ).fetchone()
+            if result:
+                current_status = result[0]
+                new_status = not current_status  # Toggle status
+                stmt = update(self.users_table).where(self.users_table.c.userid == user_id).values(
+                    active=new_status,
+                    lastupdate=datetime.now()
+                )
+                session.execute(stmt)
+                session.commit()
+                return new_status
+            return None
+        except Exception as e:
+            session.rollback()
+            print(f"Error in change_active_status_for_user: {e}")
+            return None
 
     def get_user_by_id(self, user_id):
         """
@@ -226,35 +265,33 @@ class UsersTable:
             session.rollback()
             print(f"Error in change_user_password: {e}")
 
-    def get_whitelisted_rooms(self, user_id, for_server=False):
-        """
-        Return a list of chat IDs (strings) of the user that appear in chat_projects.
-        """
-        try:
-            # Get all chat IDs for this user from chats table
-            user_chats = session.execute(
-                select(self.chats.c.chatid).where(self.chats.c.userid == user_id)
-            ).fetchall()
-            chat_ids = [row[0] for row in user_chats] if user_chats else []
-            if not chat_ids:
-                return []
-            # Get chat IDs that are also in chat_projects
-            whitelisted_chats = session.execute(
-                select(self.chats.c.chatid)
-                .where(
-                    self.chats.c.chatid.in_(
-                        select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
-                    )
-                )
-            ).fetchall()
-            ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
-            if for_server:
-                ids = [id.split(':')[0].replace('!', '') for id in ids]  # Filter for server IDs
-            return ids
-        except Exception as e:
-            session.rollback()
-            print(f"Error in get_whitelisted_rooms: {e}")
-            return []
+    # def get_whitelisted_rooms(self, userid):
+    #     """
+    #     Return a list of chat IDs (strings) of the user that appear in chat_projects.
+    #     """
+    #     try:
+    #         # Get all chat IDs for this user from chats table
+    #         active_chats = session.execute(
+    #             select(self.chats.c.chatid).where(self.chats.c.active == True & self.chats.c.userid == userid)
+    #         ).fetchall()
+    #         chat_ids = [row[0] for row in active_chats] if active_chats else []
+    #         if not chat_ids:
+    #             return []
+    #         # Get chat IDs that are also in chat_projects
+    #         whitelisted_chats = session.execute(
+    #             select(self.chats.c.chatid)
+    #             .where(
+    #                 self.chats.c.chatid.in_(
+    #                     select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
+    #                 )
+    #             )
+    #         ).fetchall()
+    #         ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
+    #         return ids
+    #     except Exception as e:
+    #         session.rollback()
+    #         print(f"Error in get_whitelisted_rooms: {e}")
+    #         return []
         
     def delete_user(self, user_id):
         """
@@ -535,7 +572,6 @@ class ChatsTable:
                 if chat_in_db['Chat Name'] != chat_name:
                     self.update_chat_name(chat_id, chat_name)
             else: # if chat not in db, add it
-                print('test')
                 platform = chat.get("Platform")
                 user_id = chat.get("UserID")
                 self.add_chat(chat_id, chat_name, platform, user_id)
@@ -565,12 +601,48 @@ class ChatsTable:
             }
         return None
 
-    def get_chat_by_user(self, user_id):
+    def get_chats_by_user(self, user_id):
         """
         Fetch all chats for a given user_id.
         """
         result = session.execute(select(self.chats_table).where(self.chats_table.c.userid == user_id)).fetchall()
-        return [dict(row._mapping) for row in result] if result else []
+        chats_df = pd.DataFrame(result) if result else pd.DataFrame(columns=['ChatID', 'Chat Name', 'Platform', 'UserID', 'Donated', 'CreatedAt', 'UpdatedAt',])
+        columns_renaming = {
+            'chatname': 'Chat Name',
+            'chatid': 'ChatID',
+            'platform': 'Platform',
+            'userid': 'UserID',
+            'active': 'Donated',
+            'createdat': 'CreatedAt',
+            'updatedat': 'UpdatedAt',
+        }
+        chats_df = chats_df.rename(columns=columns_renaming)
+        return chats_df
+    
+    def change_active_status_for_chat(self, chat_id):
+        """
+        Change the active status for a chat.
+        """
+        try:
+            # Fetch current status
+            result = session.execute(
+                select(self.chats_table.c.active).where(self.chats_table.c.chatid == chat_id)
+            ).fetchone()
+            if result:
+                current_status = result[0]
+                new_status = not current_status  # Toggle status
+                stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(
+                    active=new_status,
+                    updatedat=datetime.now()
+                )
+                session.execute(stmt)
+                session.commit()
+                return new_status
+            return None
+        except Exception as e:
+            session.rollback()
+            print(f"Error in change_active_status_for_chat: {e}")
+            return None
 
     def delete_chat(self, chat_id):
         """
@@ -583,6 +655,47 @@ class ChatsTable:
         except Exception as e:
             session.rollback()
             print(f"Error in delete_chat_by_id: {e}")
+
+    def get_whitelisted_rooms_by_user(self, userid):
+        """
+        Return a list of chat IDs (strings) of the user that appear in chat_projects.
+        """
+        try:
+            # Get all chat IDs for this user from chats table
+            active_chats = session.execute(
+                select(self.chats.c.chatid).where(self.chats.c.active == True & self.chats.c.userid == userid)
+            ).fetchall()
+            chat_ids = [row[0] for row in active_chats] if active_chats else []
+            if not chat_ids:
+                return []
+            # Get chat IDs that are also in chat_projects
+            whitelisted_chats = session.execute(
+                select(self.chats.c.chatid)
+                .where(
+                    self.chats.c.chatid.in_(
+                        select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
+                    )
+                )
+            ).fetchall()
+            ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
+            return ids
+        except Exception as e:
+            session.rollback()
+            print(f"Error in get_whitelisted_rooms: {e}")
+            return []
+        
+    
+    def disable_all_rooms_for_user(self, userid):
+        """
+        Disable all rooms for a user.
+        """
+        try:
+            stmt = update(self.chats_table).where(self.chats_table.c.userid == userid).values(active=False, updatedat=datetime.now())
+            session.execute(stmt)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error in disable_rooms_by_user: {e}")
 
 class UserProjectsTable:
     def __init__(self):

@@ -33,82 +33,10 @@ def register_user(username, password):
     return True
 
 
-def plot_sentiment_distribution(project_id):
-    """Generate a plot showing sentiment distribution for a project's messages."""
-    # Get chats for the project
-    project_chats = dbs.get_project_chats(project_id)
-
-    if not project_chats:
-        return None
-
-    # Collect all messages from these chats
-    chat_ids = [chat['ChatID'] for chat in project_chats]
-    project_messages = dbs.get_messages_by_chat_ids(chat_ids)
-
-    if not project_messages:
-        return None
-
-    # Count sentiments
-    sentiment_counts = pd.DataFrame(project_messages)['Sentiment'].value_counts()
-
-    # Create a figure
-    fig, ax = plt.subplots(figsize=(8, 5))
-    sentiment_counts.plot(kind='bar', ax=ax, color=['#5cb85c', '#d9534f', '#5bc0de', '#f0ad4e'])
-    ax.set_title(f'Sentiment Distribution for Project {project_id}')
-    ax.set_ylabel('Number of Messages')
-    ax.set_xlabel('Sentiment')
-
-    # Return the figure
-    return fig
-
-
-def plot_chat_activity(project_id):
-    """Generate a plot showing chat activity over time for a project."""
-    # Get chats for the project
-    project_chats = dbs.get_project_chats(project_id)
-
-    if not project_chats:
-        return None
-
-    # Collect all messages from these chats
-    chat_ids = [chat['ChatID'] for chat in project_chats]
-    project_messages = dbs.get_messages_by_chat_ids(chat_ids)
-
-    if not project_messages:
-        return None
-
-    # Convert timestamps to datetime
-    messages_df = pd.DataFrame(project_messages)
-    messages_df['Timestamp'] = pd.to_datetime(messages_df['Timestamp'])
-
-    # Group by date and count messages
-    daily_activity = messages_df.groupby(messages_df['Timestamp'].dt.date).size()
-
-    # Create a figure
-    fig, ax = plt.subplots(figsize=(10, 6))
-    daily_activity.plot(kind='line', ax=ax, marker='o', linestyle='-', color='#337ab7')
-    ax.set_title(f'Chat Activity Over Time for Project {project_id}')
-    ax.set_ylabel('Number of Messages')
-    ax.set_xlabel('Date')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-
-    # Return the figure
-    return fig
-
-
-def get_researcher_projects(researcher_id):
-    """Get projects where the researcher is the lead."""
-    # projects = dbs.get_projects()
-    # researcher_projects = [p for p in projects if p['LeadResearcher'] == researcher_id]
-    # return researcher_projects
-    
-
-
 
 def researcher_app(userid, tables_dict):
     """Main function for the Researcher Dashboard."""
-    # Find user by email
+    # tables
     chats, users, projects, user_projects, chats_projects, chats_blacklist, messages = (
         tables_dict["Chats"],
         tables_dict["Users"],
@@ -120,6 +48,7 @@ def researcher_app(userid, tables_dict):
     )
     user_data = users.get_user_by_id(userid)
 
+    # Check if user data exists
     if not user_data:
         st.error(f"User with username {userid} not found in the database.")
         st.write("Please log out and log in again.")
@@ -130,53 +59,52 @@ def researcher_app(userid, tables_dict):
             st.rerun()
         return
 
-    # Get user information
-    # userid = user_data['UserID']
-    users_projects = projects.get_projects_by_researcher(userid)
+    # # Get user information
+    # users_projects = projects.get_projects_by_researcher(userid)
 
     # # Get the projects where this researcher is the lead
     # researcher_projects = get_researcher_projects(userid)
     # Page title
     st.title("Researcher Dashboard")
 
-    if not users_projects:
-        st.warning("You are not currently assigned as a lead researcher for any projects.")
-        st.info("Please contact the administrator to be assigned to a project.")
-        return
+    # if not users_projects:
+    #     st.warning("You are not currently assigned as a lead researcher for any projects.")
+    #     st.info("Please contact the administrator to be assigned to a project.")
+    #     return
     
     # projects_by_name = {record['ProjectName']: record for record in users_projects}
-    projects_by_id = {record['ProjectID']: record for record in users_projects}
-    projects_by_name = projects_by_id
+    # projects_by_id = {record['ProjectID']: record for record in users_projects}
+    # projects_by_name = projects_by_id
 
-    project_names = list(projects_by_name.keys()) if projects_by_name else []
+    # project_names = list(projects_by_name.keys()) if projects_by_name else []
 
 
     st.sidebar.success(f"Welcome, {userid}!")
 
-    # Sidebar: Select Project
-    st.sidebar.header("Select a Project")
+    # # Sidebar: Select Project
+    # st.sidebar.header("Select a Project")
 
     # Build project_id to name mapping for selectbox
-    project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_by_id.items()}
-    project_ids = list(project_id_to_name.keys())
-    project_names = [project_id_to_name[pid] for pid in project_ids]
+    # project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_by_id.items()}
+    # project_ids = list(project_id_to_name.keys())
+    # project_names = [project_id_to_name[pid] for pid in project_ids]
 
     # Default project selection
-    if "selected_project_id" not in st.session_state:
-        st.session_state["selected_project_id"] = project_ids[0]
+    # if "selected_project_id" not in st.session_state:
+    #     st.session_state["selected_project_id"] = project_ids[0]
 
-    # Selectbox for project selection by name
-    selected_project_name = st.sidebar.selectbox(
-        "Project",
-        project_names,
-        index=project_names.index(project_id_to_name[st.session_state["selected_project_id"]]),
-        key="sidebar_project_select"
-    )
-    # Map back to project_id
-    selected_project_id = [pid for pid, name in project_id_to_name.items() if name == selected_project_name][0]
-    st.session_state["selected_project_id"] = selected_project_id
+    # # Selectbox for project selection by name
+    # selected_project_name = st.sidebar.selectbox(
+    #     "Project",
+    #     project_names,
+    #     index=project_names.index(project_id_to_name[st.session_state["selected_project_id"]]),
+    #     key="sidebar_project_select"
+    # )
+    # # Map back to project_id
+    # selected_project_id = [pid for pid, name in project_id_to_name.items() if name == selected_project_name][0]
+    # st.session_state["selected_project_id"] = selected_project_id
 
-    curr_chat_ids = chats_projects.get_chats_ids_by_projects(selected_project_id)
+    # curr_chat_ids = chats_projects.get_chats_ids_by_projects(selected_project_id)
     # messages_df = messages.get_df(chats_ids=curr_chat_ids)
     messages_df = messages.get_df(chat_ids=['hovOAmJBtnOuQFpvBu'])
     chats_summary = messages.get_chats_summary(messages_df)
@@ -185,7 +113,7 @@ def researcher_app(userid, tables_dict):
     # Sidebar menu
     menu = st.sidebar.selectbox(
         "Dashboard Menu",
-        ["Project Analytics", "Chat Analysis", "User Management", "Project Creation", "Data Export"]
+        ["Project Analytics", "Chat Analysis", "User Management"]
     )
 
     # Project Analytics Page (Blank)
@@ -207,52 +135,77 @@ def researcher_app(userid, tables_dict):
 
         tab1, tab2 = st.tabs(["Project's Users", "Register New User"])
 
-        with tab1:
+        with tab1: # project's users tab
             # Fetch users in the project
-            project_users = user_projects.get_projects_users(selected_project_id)
-            users_data = users.get_users_by_ids(project_users)
-
+            users_df = users.get_users()
             # Display users in the project
             st.subheader("Users in Project")
-            if not project_users:
+            if len(users_df) == 0: # if table is empty
                 st.info("No users are currently registered in this project.")
             else:
-                users_df = pd.DataFrame(users_data)
+                # users_df = pd.DataFrame(users_data)
                 users_df['Delete'] = False  # Add a column for deletion
                 delete_col_config = st.column_config.CheckboxColumn("Delete", help="Check to delete this user", default=False)
+                active_col_config = st.column_config.CheckboxColumn("Active", help="Check to activate this user", default=False)
                 edited_users_df = st.data_editor(
-                    users_df[['UserID', 'Role', 'Creator', 'Active', 'CreatedAt', 'Delete']],
+                    users_df[['UserID', 'Role', 'Creator', 'Active', 'CreatedAt', 'UpdatedAt', 'Delete']],
                     use_container_width=True,
                     num_rows="fixed",
                     column_config={
-                        'Delete': delete_col_config
+                        'Delete': delete_col_config,
+                        'Active': active_col_config
                     },
-                    disabled=['UserID', 'Role', 'Creator', 'Active', 'CreatedAt'],
+                    disabled=['UserID', 'Role', 'Creator', 'CreatedAt', 'UpdatedAt'],
                     hide_index=True
                 )
                 # Add Save/Confirm Changes button
                 if st.button("Save Changes", key="save_user_deletions"):
-                    deleted_any = False
+                    any_change = False
                     for idx, row in edited_users_df.iterrows():
-                        if row['Delete']:
-                            if row['UserID'] == userid:
+                        curr_user_id = row['UserID']
+                        if row['Delete']:  # if the user is marked for deletion, delete them
+                            # Check if the user is trying to delete themselves
+                            if curr_user_id == userid:
                                 st.warning("You cannot delete yourself from this page.")
                                 continue
+                            # send delete request to the server
                             try:
                                 requests.post(
                                     f"{server}/api/user/destroy",
                                     json={
-                                        "username": row['UserID']
+                                        "username": curr_user_id
                                     }
                                 )
-                                users.delete_user(row['UserID'])
-                                st.success(f"User {row['UserID']} deleted successfully.")
-                                deleted_any = True
+                                # delete user from the database
+                                users.delete_user(curr_user_id)
+                                st.success(f"User {curr_user_id} deleted successfully.")
+                                any_change = True
                             except Exception as e:
-                                st.error(f"Failed to delete user {row['UserID']}: {str(e)}")
-                    if deleted_any:
+                                st.error(f"Failed to delete user {curr_user_id}: {str(e)}")
+                        if row['Active'] != users.get_user_by_id(curr_user_id)['Active']: # if the active status has changed
+                            try:
+                                users.change_active_status_for_user(curr_user_id)
+                                any_change = True
+                                if row['Active']:
+                                    st.success(f"User {curr_user_id} activated successfully.")
+                                else:
+                                    try: # send empty whitelist to stop pulling messages
+                                        requests.post(
+                                        f"{server}/api/user/whitelist-rooms",
+                                        json={
+                                            "username": curr_user_id,
+                                            "room_ids": []
+                                        })
+                                    except Exception as e:
+                                        st.error(f"Failed to update user {curr_user_id} active status: {str(e)}")
+                                    else:
+                                        st.success(f"User {curr_user_id} deactivated successfully.")
+                            except Exception as e:
+                                st.error(f"Failed to update user {row['UserID']} active status: {str(e)}")
+                    if any_change:
                         st.rerun()
-        with tab2:
+
+        with tab2: # register new user tab
             col1, col2 = st.columns(2)
             with col1:
                 # Form to register a new user
@@ -297,33 +250,21 @@ def researcher_app(userid, tables_dict):
                                             active=True,
                                         )
                                         user_projects.add_user_to_project(
-                                            user_id=username, 
-                                            project_id=selected_project_id
+                                            user_id=username
                                         )
 
                                         json = {   # send to server
                                             "username": username,
                                             "password": password
-                                        }  # this is the user's credentials, replace password with access token if this is the received data from the login.
+                                        }
                                         result = requests.post(f"{server}/api/user/create", json=json)
                                         if not result.json().get("success"):
                                             st.error(f"Error registering user on server: {result.json().get('message', 'Unknown error')}")
                                             return
                                         else:
                                             st.success(f"User {username} registered successfully!")
-                                        # st.info(f"When logging in, use server URL: {server_url}")
                                     else:
                                         st.error("Registration failed. Username might already exist.")
                                 except Exception as e:
                                     st.error(f"Registration error: {str(e)}")
            
-
-    # Project Creation Page (Blank)
-    elif menu == "Project Creation":
-        st.header("Project Creation")
-        st.markdown("This page is under construction.")
-
-    # Data Export Page
-    elif menu == "Data Export":
-        st.header("Data Export")
-        st.markdown("Export project data.")

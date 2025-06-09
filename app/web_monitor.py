@@ -124,7 +124,7 @@ class WebMonitor:
             st.error(f"An error occurred during login: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
     
-    async def get_joined_chats(self, group=True, chats_blacklist=[]):
+    async def get_joined_chats(self, group=False, chats_blacklist=[]):
         """Return a list of joined rooms/chats with platform info."""
         print(f"WebMonitor: Get joined chats for user {self.username}") 
         try:
@@ -133,7 +133,7 @@ class WebMonitor:
         except Exception as e:
             return {"status": "error", "message": f"Failed to get joined chats: {str(e)}"}
 
-    async def get_invited_chats(self, group=True, chats_blacklist=[]):
+    async def get_invited_chats(self, group=False, chats_blacklist=[]):
         print(f"WebMonitor: Get invited chats for user {self.username}") 
         """Return a list of invited (pending) rooms/chats with platform info."""
         try:

@@ -41,12 +41,10 @@ def user_app(userid, tables_dict, password):
         else:
             st.error("Login failed. Please try again.")
             return
-    else:
+    else: # if a web monitor already exists, use it
         web_monitor = st.session_state["web_monitor"]
-    # web_monitor = WebMonitor(username=userid, password=password, platforms=["signal", "whatsapp", "telegram"])
-    # login_result = asyncio.run(web_monitor.login())
-    # st.session_state["web_monitor"] = web_monitor
-    # Fetch user data from UsersTable
+    
+
     user_data = users.get_user_by_id(userid)
 
     if not user_data:
@@ -60,20 +58,20 @@ def user_app(userid, tables_dict, password):
         return
 
     # Fetch user's chats from the database using ChatsTable
-    user_chats = chats.get_chat_by_user(userid)
-    chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'Chat Name', 'Platform', 'UserID', 'CreatedAt', 'UpdatedAt'])
-    columns_renaming = {
-        'chatname': 'Chat Name',
-        'chatid': 'ChatID',
-        'platform': 'Platform',
-        'createat': 'CreatedAt',
-        'updatedat': 'UpdatedAt',
-    }
-    chats_df.rename(columns=columns_renaming, inplace=True)
+    chats_df = chats.get_chats_by_user(userid)
+    # chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'Chat Name', 'Platform', 'UserID', 'CreatedAt', 'UpdatedAt'])
+    # columns_renaming = {
+    #     'chatname': 'Chat Name',
+    #     'chatid': 'ChatID',
+    #     'platform': 'Platform',
+    #     'createat': 'CreatedAt',
+    #     'updatedat': 'UpdatedAt',
+    # }
+    # chats_df.rename(columns=columns_renaming, inplace=True)
 
-    # Fetch project details
-    available_projects = user_projects.get_user_projects(userid)
-    projects_info = projects.get_projects_by_ids(available_projects)
+    # # Fetch project details
+    # available_projects = user_projects.get_user_projects(userid)
+    # projects_info = projects.get_projects_by_ids(available_projects)
 
     # Page title
     st.title("User Dashboard")
@@ -115,18 +113,18 @@ def user_app(userid, tables_dict, password):
         with col1:
             st.markdown("### 🔍 Filter Your Chats")
             # Project filter
-            if projects_info:
-                project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_info.items()}
-                selected_project_id = st.selectbox(
-                    "Select a Project",
-                    list(project_id_to_name.keys()),
-                    format_func=lambda pid: project_id_to_name[pid],
-                    key="project_filter"
-                )
-            else:
-                st.markdown("No projects available.")
-                selected_project_id = None
-            selected_project = projects_info[selected_project_id] if selected_project_id is not None else None
+            # if projects_info:
+            #     project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_info.items()}
+            #     selected_project_id = st.selectbox(
+            #         "Select a Project",
+            #         list(project_id_to_name.keys()),
+            #         format_func=lambda pid: project_id_to_name[pid],
+            #         key="project_filter"
+            #     )
+            # else:
+            #     st.markdown("No projects available.")
+            #     selected_project_id = None
+            # selected_project = projects_info[selected_project_id] if selected_project_id is not None else None
             # Platform filter
             selected_platforms = st.pills(
                 "Select Platforms",
@@ -140,13 +138,13 @@ def user_app(userid, tables_dict, password):
             # Donation status filter
             donation_filter = st.selectbox("Filter by donation status", ["All", "Donated", "Not Donated"])
             
-            # Add Donated column based on chat-project association
-            if selected_project_id:
-                chats_df['Donated'] = chats_df['ChatID'].apply(
-                    lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
-                )
-            else:
-                chats_df['Donated'] = False
+            
+            # if selected_project_id:
+            #     chats_df['Donated'] = chats_df['ChatID'].apply(
+            #         lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
+            #     )
+            # else:
+            #     chats_df['Donated'] = False
 
             # Add Blacklist column (default False)
             chats_df['Blacklist'] = False
@@ -154,22 +152,22 @@ def user_app(userid, tables_dict, password):
             filtered_df = chats_df.copy()
 
             # Apply all filters to chats DataFrame
-            if selected_project_id:
-                if selected_platforms:
-                    filtered_df = filtered_df[
-                        (filtered_df['Platform'].isin(selected_platforms))
-                    ]
-                if search_text:
-                    filtered_df = filtered_df[filtered_df['Chat Name'].str.contains(search_text, case=False, na=False)]
-                if donation_filter == "Donated":
-                    filtered_df = filtered_df[filtered_df['Donated'] == True]
-                elif donation_filter == "Not Donated":
-                    filtered_df = filtered_df[filtered_df['Donated'] == False]
+            # if selected_project_id:
+            if selected_platforms:
+                filtered_df = filtered_df[
+                    (filtered_df['Platform'].isin(selected_platforms))
+                ]
+            if search_text:
+                filtered_df = filtered_df[filtered_df['Chat Name'].str.contains(search_text, case=False, na=False)]
+            if donation_filter == "Donated":
+                filtered_df = filtered_df[filtered_df['Donated'] == True]
+            elif donation_filter == "Not Donated":
+                filtered_df = filtered_df[filtered_df['Donated'] == False]
             
             if st.button("Refresh My Chats"):
                 # Refresh chat lists from web_monitor and update local DB
-                donated_result = asyncio.run(web_monitor.get_invited_chats())
-                not_donated_result = asyncio.run(web_monitor.get_joined_chats())
+                donated_result = asyncio.run(web_monitor.get_invited_chats(group=False))
+                not_donated_result = asyncio.run(web_monitor.get_joined_chats(group=False))
                 not_donated_chats = donated_result.get("invited_chats", [])
                 donated_chats = not_donated_result.get("joined_chats", [])
                 if donated_chats:
@@ -202,7 +200,7 @@ def user_app(userid, tables_dict, password):
                     chat_id = row["ChatID"]
                     if row["Blacklist"]:
                         # Remove chat from project and delete it
-                        chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
+                        # chats_projects.remove_chat_project(chat_id=chat_id)
                         chats.delete_chat(chat_id)
                         st.toast(f"Deleted chat: {row['Chat Name']}", icon="✅")
                         result = asyncio.run(web_monitor.disable_room(chat_id))
@@ -214,71 +212,67 @@ def user_app(userid, tables_dict, password):
                         continue
                     original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
                     if row["Donated"] != original_row["Donated"]:
-                        if row["Donated"]: 
-                            result = asyncio.run(web_monitor.approve_room(chat_id))
-                            chats_projects.add_chat_project(chat_id=chat_id, project_id=selected_project_id)
-                            st.toast(f"Donated Chat: {row['Chat Name']}", icon="✅")
-                        else: # Remove chat from project (room is still joined)
-                            chats_projects.remove_chat_project(chat_id=chat_id, project_id=selected_project_id)
-                            # Disable (leave) the room
-                            result = asyncio.run(web_monitor.disable_room(chat_id))
-                            if result.get("status") == "success":
+                        chats.change_active_status_for_chat(chat_id=chat_id)
+                        result = asyncio.run(web_monitor.approve_room(chat_id))
+                        if result.get("status") == "success":
+                            if row["Donated"]: 
+                                st.toast(f"Donated Chat: {row['Chat Name']}", icon="✅")
+                            else: # Remove chat from project (room is still joined)
                                 st.toast(f"Disabled Chat: {row['Chat Name']}", icon="✅")
-                            else:
-                                st.toast(f"Failed to disable Chat: {row['Chat Name']}", icon="❌")
-                        st.toast(f"Saved changes for chat: {row['Chat Name']}", icon="✅")
+                        else:
+                            st.toast(f"Failed to change chat status: {row['Chat Name']}", icon="❌")
+
                 print("Whitelisting:")
-                for room in users.get_whitelisted_rooms(userid, for_server=False):
-                    print(f' - {room}')
+                rooms_for_whitelist = chats.get_whitelisted_rooms_by_user(userid)
+                print(f"Current whitelisted rooms: {rooms_for_whitelist}:")
+                # for room in users.get_whitelisted_rooms():
+                #     print(f' - {room}')
                 requests.post(
                     f"{server}/api/user/whitelist-rooms",
                     json={
                         "username": userid,
-                        "room_ids": users.get_whitelisted_rooms(userid, for_server=False)
+                        "room_ids": rooms_for_whitelist
                     }
                 )
                 st.rerun()
             
-    with tab2:
-        # Statistics tab
-        st.header("Statistics")
-        if selected_project_id:
-            # Get chat IDs for this user and project
-            user_chats = chats.get_chat_by_user(userid)
-            user_chat_ids = set(chat['chatid'] for chat in user_chats)
-            project_chat_ids = set(chats_projects.get_chats_ids_by_projects(selected_project_id))
-            # Only chats belonging to this user and project
-            relevant_chat_ids = [chat_id for chat_id in user_chat_ids if chat_id in project_chat_ids]
-            if relevant_chat_ids:
-                # Count messages per chat from foo_2025-05-29.jsonl
-                import json
-                from collections import Counter
-                msg_counts = Counter()
-                try:
-                    with open('app\menashe_2025-05-29.jsonl', 'r', encoding='utf-8') as f:
-                        for line in f:
-                            try:
-                                msg = json.loads(line)
-                                room_id = msg.get('room_id')
-                                if room_id:
-                                    msg_counts[room_id] += 1
-                            except Exception:
-                                continue
-                except Exception as e:
-                    st.warning(f"Could not read message file: {e}")
-                with st.spinner("Fetching room statistics..."):
-                    stats_result = asyncio.run(web_monitor.get_room_stats(relevant_chat_ids))
-                if stats_result.get("status") == "success":
-                    stats_df = pd.DataFrame(stats_result["room_stats"])
-                    # Add message count column
-                    stats_df['num_messages'] = stats_df['room_id'].apply(lambda rid: msg_counts.get(rid.split(':')[0], 0))
-                    st.dataframe(stats_df, use_container_width=True, hide_index=True)
-                else:
-                    st.error(f"Failed to fetch room stats: {stats_result.get('message', 'Unknown error')}")
-            else:
-                st.info("No chats found for this project.")
-        else:
-            st.info("Select a project to view statistics.")
+    # with tab2:
+    #     # Statistics tab
+    #     st.header("Statistics")
+    #     # Get chat IDs for this user and project
+    #     user_chats = chats.get_chats_by_user(userid)
+    #     user_chat_ids = set(chat['chatid'] for chat in user_chats)
+    #     # project_chat_ids = set(chats_projects.get_chats_ids_by_projects(selected_project_id))
+    #     # Only chats belonging to this user and project
+    #     # relevant_chat_ids = [chat_id for chat_id in user_chat_ids if chat_id in project_chat_ids]
+    #     if user_chat_ids:
+    #         # Count messages per chat from foo_2025-05-29.jsonl
+    #         import json
+    #         from collections import Counter
+    #         msg_counts = Counter()
+    #         try:
+    #             with open('app\menashe_2025-05-29.jsonl', 'r', encoding='utf-8') as f:
+    #                 for line in f:
+    #                     try:
+    #                         msg = json.loads(line)
+    #                         room_id = msg.get('room_id')
+    #                         if room_id:
+    #                             msg_counts[room_id] += 1
+    #                     except Exception:
+    #                         continue
+    #         except Exception as e:
+    #             st.warning(f"Could not read message file: {e}")
+    #         with st.spinner("Fetching room statistics..."):
+    #             stats_result = asyncio.run(web_monitor.get_room_stats(user_chat_ids))
+    #         if stats_result.get("status") == "success":
+    #             stats_df = pd.DataFrame(stats_result["room_stats"])
+    #             # Add message count column
+    #             stats_df['num_messages'] = stats_df['room_id'].apply(lambda rid: msg_counts.get(rid.split(':')[0], 0))
+    #             st.dataframe(stats_df, use_container_width=True, hide_index=True)
+    #         else:
+    #             st.error(f"Failed to fetch room stats: {stats_result.get('message', 'Unknown error')}")
+    #     else:
+    #         st.info("No chats found for this project.")
         
     
     with tab3:
@@ -309,28 +303,28 @@ def user_app(userid, tables_dict, password):
                             else:
                                 st.error(f"Failed to change password: {result.get('message', 'Unknown error')}")
 
-        with col2:
-            with st.form('Leave Project'):
-                st.subheader('Leave Project')
-                if available_projects:
-                    project_ids = [pid for pid in available_projects if pid in projects_info]
-                    project_names = [projects_info[pid]['ProjectName'] for pid in project_ids]
-                    selected_project = st.selectbox('Select Project to Leave', project_names, key='leave_project_select')
-                else:
-                    st.info('You are not part of any projects.')
-                    selected_project = None
+        # with col2:
+            # with st.form('Leave Project'):
+            #     st.subheader('Leave Project')
+            #     if available_projects:
+            #         project_ids = [pid for pid in available_projects if pid in projects_info]
+            #         project_names = [projects_info[pid]['ProjectName'] for pid in project_ids]
+            #         selected_project = st.selectbox('Select Project to Leave', project_names, key='leave_project_select')
+            #     else:
+            #         st.info('You are not part of any projects.')
+            #         selected_project = None
 
-                submitted = st.form_submit_button('Leave Project')
-                if submitted and selected_project:
-                    project_id = next(pid for pid, name in zip(project_ids, project_names) if name == selected_project)
-                    with st.spinner(f'Leaving project {selected_project}...'):
-                        user_projects.remove_user_project(userid, project_id)
-                        st.success(f'You have left the project: {selected_project}')
-                        st.rerun()
+            #     submitted = st.form_submit_button('Leave Project')
+            #     if submitted and selected_project:
+            #         project_id = next(pid for pid, name in zip(project_ids, project_names) if name == selected_project)
+            #         with st.spinner(f'Leaving project {selected_project}...'):
+            #             user_projects.remove_user_project(userid, project_id)
+            #             st.success(f'You have left the project: {selected_project}')
+            #             st.rerun()
         with col3:
             with st.form('Disable All Chats'):
                 st.subheader('Disable All Chats')
-                st.warning('This will disable all of your donated chats from all the projects.')
+                st.warning('This will disable all of your donated chats.')
                 if st.form_submit_button('Disable All Chats'):
                     with st.spinner('Disabling all chats...'):
                         try:
@@ -341,8 +335,7 @@ def user_app(userid, tables_dict, password):
                                 "room_ids": []
                             }
                         )
-                            users.get_whitelisted_rooms(userid, for_server=True)
-                            chats_projects.remove_chat_project(userid)
+                            chats.disable_all_rooms_for_user(userid)
                             
                         except Exception as e:
                             st.error(f"An error occurred while disabling chats: {str(e)}")
