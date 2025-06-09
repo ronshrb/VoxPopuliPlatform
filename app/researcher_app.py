@@ -57,56 +57,16 @@ def researcher_app(userid, tables_dict):
             st.rerun()
         return
 
-    # # Get user information
-    # users_projects = projects.get_projects_by_researcher(userid)
 
-    # # Get the projects where this researcher is the lead
-    # researcher_projects = get_researcher_projects(userid)
     # Page title
     st.title("Researcher Dashboard")
 
-    # if not users_projects:
-    #     st.warning("You are not currently assigned as a lead researcher for any projects.")
-    #     st.info("Please contact the administrator to be assigned to a project.")
-    #     return
-    
-    # projects_by_name = {record['ProjectName']: record for record in users_projects}
-    # projects_by_id = {record['ProjectID']: record for record in users_projects}
-    # projects_by_name = projects_by_id
-
-    # project_names = list(projects_by_name.keys()) if projects_by_name else []
-
-
     st.sidebar.success(f"Welcome, {userid}!")
 
-    # # Sidebar: Select Project
-    # st.sidebar.header("Select a Project")
-
-    # Build project_id to name mapping for selectbox
-    # project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_by_id.items()}
-    # project_ids = list(project_id_to_name.keys())
-    # project_names = [project_id_to_name[pid] for pid in project_ids]
-
-    # Default project selection
-    # if "selected_project_id" not in st.session_state:
-    #     st.session_state["selected_project_id"] = project_ids[0]
-
-    # # Selectbox for project selection by name
-    # selected_project_name = st.sidebar.selectbox(
-    #     "Project",
-    #     project_names,
-    #     index=project_names.index(project_id_to_name[st.session_state["selected_project_id"]]),
-    #     key="sidebar_project_select"
-    # )
-    # # Map back to project_id
-    # selected_project_id = [pid for pid, name in project_id_to_name.items() if name == selected_project_name][0]
-    # st.session_state["selected_project_id"] = selected_project_id
-
-    # curr_chat_ids = chats_projects.get_chats_ids_by_projects(selected_project_id)
-    # messages_df = messages.get_df(chats_ids=curr_chat_ids)
+   
     messages_df = messages.get_df(chat_ids=['hovOAmJBtnOuQFpvBu'])
     chats_summary = messages.get_chats_summary(messages_df)
-    # chats_summary = 
+
 
     # Sidebar menu
     menu = st.sidebar.selectbox(

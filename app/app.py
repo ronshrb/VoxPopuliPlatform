@@ -78,7 +78,7 @@ if "logged_in" not in st.session_state:
     st.session_state["registration_mode"] = False
     st.session_state["registration_success"] = False
     st.session_state["registered_role"] = None
-    # st.session_state["debug_mode"] = False
+
 
 # Main app
 

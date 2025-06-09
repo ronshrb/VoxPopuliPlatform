@@ -2,7 +2,6 @@ from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, 
 import pandas as pd
 from datetime import datetime
 import connectors
-import duckdb
 import os
 from dotenv import load_dotenv
 from io import StringIO
@@ -51,64 +50,7 @@ chats_blacklist_table = Table(
     'chats_blacklist', metadata,
     Column('chatid', String, primary_key=True)
 )
-# Mongo
-# mongo_conn = connectors.mongo_connector()
 
-# class MongoDBCollection:
-#     def __init__(self, db_name, collection_name):
-#         self.client = mongo_conn.get_client()
-#         self.collection = mongo_conn.get_table(db_name, collection_name)
-#         self.collection_df = pd.DataFrame(list(self.collection.find()))
-    
-#     def get_collection(self):
-#         return self.collection_df
-    
-#     def get_collection_df(self):
-#         return pd.DataFrame(list(self.collection.find()))
-    
-#     def get_collection_by_id(self, item_id):
-#         item = self.collection.find_one({"_id": item_id})
-#         return item if item else None
-    
-#     def add_item(self, item_data):
-#         self.collection.insert_one(item_data)
-    
-#     def update_item(self, item_id, update_data):
-#         self.collection.update_one({"_id": item_id}, {"$set": update_data})
-    
-#     def delete_item(self, item_id):
-#         self.collection.delete_one({"_id": item_id})
-
-# # class MessagesColl(MongoDBCollection):
-#     def __init__(self, project_id):
-#         super().__init__('VoxPopuli', project_id)
-    
-#     def get_messages(self):
-#         return self.collection_df
-    
-#     def get_messages_by_user(self, userid):
-#         pass
-
-#     def get_chats_info(self):
-#         # Register the DataFrame as a DuckDB table
-#         duckdb.register("messages_table", self.collection_df)
-        
-#         # Define the query
-#         q = """
-#         SELECT room_id "Chat ID", room_name "Chat Name", COUNT(event_id) AS "Total Messages", platform Platform
-#         FROM messages_table
-#         GROUP BY room_id, room_name, platform
-#         """
-
-#         return duckdb.query(q).to_df()
-    
-#     def get_users(self):
-#         q = f"""
-#         SELECT DISTINCT sender_id, sender_name
-#         FROM {self.messages_df}
-#         """
-#         return duckdb.query(q).to_df()
-    
 class UsersTable:
     def __init__(self):
         self.users_table = users_table

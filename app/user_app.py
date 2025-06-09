@@ -57,19 +57,6 @@ def user_app(userid, tables_dict, password):
 
     # Fetch user's chats from the database using ChatsTable
     chats_df = chats.get_chats_by_user(userid)
-    # chats_df = pd.DataFrame(user_chats) if user_chats else pd.DataFrame(columns=['ChatID', 'Chat Name', 'Platform', 'UserID', 'CreatedAt', 'UpdatedAt'])
-    # columns_renaming = {
-    #     'chatname': 'Chat Name',
-    #     'chatid': 'ChatID',
-    #     'platform': 'Platform',
-    #     'createat': 'CreatedAt',
-    #     'updatedat': 'UpdatedAt',
-    # }
-    # chats_df.rename(columns=columns_renaming, inplace=True)
-
-    # # Fetch project details
-    # available_projects = user_projects.get_user_projects(userid)
-    # projects_info = projects.get_projects_by_ids(available_projects)
 
     # Page title
     st.title("User Dashboard")
@@ -86,20 +73,70 @@ def user_app(userid, tables_dict, password):
         last_qr_time = st.session_state.get(cooldown_key, 0)
         cooldown_remaining = int(cooldown_seconds - (now - last_qr_time))
 
-        if st.button("Generate QR Code"):
-            if cooldown_remaining > 0:
-                st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")
-            else:
-                try:
-                    with st.sidebar:
-                        st.spinner(f"Generating QR Code for {selected_platform}...")
-                        qr_code = asyncio.run(web_monitor.generate_qr_code_and_display(platform=selected_platform))
-                        st.sidebar.image(qr_code, caption="Generated QR Code", use_container_width=True)
-                        st.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
-                    st.session_state[cooldown_key] = time.time()  # Set cooldown for this user+platform
-                    st.session_state["last_qr_code"] = qr_code      # Store QR code
-                except Exception as e:
-                    pass
+        if selected_platform == 'telegram':
+            import re
+            # Only create the room if not already in session_state
+            telegram_room_key = f'telegram_bot_room_id_{userid}'
+            asyncio.run(web_monitor.send_message_to_telegram_bot('login qr'))
+            time.sleep(5)
+            phone_number = st.text_input(
+                "Enter your phone number (with country code) for Telegram QR code",
+                key="telegram_phone_input",
+                placeholder="+1234567890"
+            )
+            phone_pattern = re.compile(r"^\+\d{10,15}$")
+            send_phone_disabled = not phone_pattern.match(phone_number)
+            if send_phone_disabled and phone_number:
+                st.warning("Phone number must start with '+' and contain 10-15 digits, e.g., +1234567890")
+            # Remove the button, send automatically if valid and entered
+            if phone_pattern.match(phone_number):
+                result = asyncio.run(web_monitor.send_message_to_telegram_bot(phone_number))
+
+                if not result or result.get("status") != "success":
+                    st.error("Failed to send phone number to Telegram bot. Please try again.")
+                else:
+                    time.sleep(5)
+                    login_code = st.text_input(
+                        "Login code sent to your Telegram. Enter the code here to generate QR code",
+                        key="telegram_code_input"
+                    )
+                    if st.button("Send Login Code to Telegram", key="send_telegram_code"):
+                        result = asyncio.run(web_monitor.send_message_to_telegram_bot(login_code))
+                        if not result or result.get("status") != "success":
+                            st.error("Failed to send login code to Telegram bot. Please try again.")
+                        else:
+                            time.sleep(5)
+                            if st.button("Generate QR Code"):
+                                if cooldown_remaining > 0:
+                                    st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")
+                                else:
+                                    try:
+                                        with st.sidebar:
+                                            st.spinner(f"Generating QR Code for {selected_platform}...")
+                                            qr_code = asyncio.run(web_monitor.generate_qr_code_and_display(platform=selected_platform))
+                                            st.sidebar.image(qr_code, caption="Generated QR Code", use_container_width=True)
+                                            st.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
+                                        st.session_state[cooldown_key] = time.time()
+                                        st.session_state["last_qr_code"] = qr_code
+                                    except Exception as e:
+                                        st.error(f"Failed to generate QR code: {e}")
+                
+
+        if selected_platform != 'telegram':
+            if st.button("Generate QR Code"):
+                if cooldown_remaining > 0:
+                    st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")
+                else:
+                    try:
+                        with st.sidebar:
+                            st.spinner(f"Generating QR Code for {selected_platform}...")
+                            qr_code = asyncio.run(web_monitor.generate_qr_code_and_display(platform=selected_platform))
+                            st.sidebar.image(qr_code, caption="Generated QR Code", use_container_width=True)
+                            st.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
+                        st.session_state[cooldown_key] = time.time()  # Set cooldown for this user+platform
+                        st.session_state["last_qr_code"] = qr_code      # Store QR code
+                    except Exception as e:
+                        pass
 
     # Main tabs for user dashboard
     tab1, tab2, tab3 = st.tabs(["My Chats","Statistics", "Account"])
@@ -124,20 +161,11 @@ def user_app(userid, tables_dict, password):
             donation_filter = st.selectbox("Filter by donation status", ["All", "Donated", "Not Donated"])
             
             
-            # if selected_project_id:
-            #     chats_df['Donated'] = chats_df['ChatID'].apply(
-            #         lambda chat_id: chats_projects.is_chat_in_project(chat_id, selected_project_id)
-            #     )
-            # else:
-            #     chats_df['Donated'] = False
-
-            # Add Blacklist column (default False)
             chats_df['Blacklist'] = False
 
             filtered_df = chats_df.copy()
 
             # Apply all filters to chats DataFrame
-            # if selected_project_id:
             if selected_platforms:
                 filtered_df = filtered_df[
                     (filtered_df['Platform'].isin(selected_platforms))
@@ -306,7 +334,7 @@ def user_app(userid, tables_dict, password):
             #             user_projects.remove_user_project(userid, project_id)
             #             st.success(f'You have left the project: {selected_project}')
             #             st.rerun()
-        with col3:
+        with col2:
             with st.form('Disable All Chats'):
                 st.subheader('Disable All Chats')
                 st.warning('This will disable all of your donated chats.')
@@ -325,41 +353,28 @@ def user_app(userid, tables_dict, password):
                         except Exception as e:
                             st.error(f"An error occurred while disabling chats: {str(e)}")
 
-        st.markdown('---')
-        st.warning('Danger Zone: Deleting your account is irreversible.')
-        if st.button('Delete My Account', type='primary'):
-            with st.spinner('Deleting your account...'):
-                try:
-                    requests.post(f"{server}/api/user/destroy",
-                        json={
-                            "username": userid
-                        }
-                    )
+        with col3:
+            with st.form('Delete Account'):
+                st.subheader('Delete Account')
+                st.warning('Danger Zone: Deleting your account is irreversible.')
+                if st.form_submit_button('Delete My Account'):
+                    with st.spinner('Deleting your account...'):
+                        try:
+                            requests.post(f"{server}/api/user/destroy",
+                                json={
+                                    "username": userid
+                                }
+                            )
+                            
+                            # chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
+                            users.delete_user(userid)
 
-                    # requests.post(
-                    #         f"{server}/api/user/whitelist-rooms",
-                    #         json={
-                    #             "username": userid,
-                    #             "room_ids": []
-                    #         }
-                    #     )
-                    
-                    chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
-                    users.delete_user(userid)
-
-                    st.success('Your account has been deleted. Logging out...')
-                    st.session_state["logged_in"] = False
-                    st.session_state["role"] = None
-                    st.session_state["user"] = None
-                    st.rerun()
-                # result = asyncio.run(web_monitor.delete_user())
-                # if result.get('status') == 'success':
-                #     st.success('Your account has been deleted. Logging out...')
-                #     st.session_state['logged_in'] = False
-                #     st.session_state['role'] = None
-                #     st.session_state['user'] = None
-                #     st.rerun()
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Failed to delete account: {str(e)}")
+                            st.success('Your account has been deleted. Logging out...')
+                            st.session_state["logged_in"] = False
+                            st.session_state["role"] = None
+                            st.session_state["user"] = None
+                            st.rerun()
+                        except requests.exceptions.RequestException as e:
+                            st.error(f"Failed to delete account: {str(e)}")
 
 
