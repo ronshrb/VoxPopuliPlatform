@@ -56,14 +56,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 db_name = "VoxPopuli" # change to your database name
-users = dbs.UsersColl(db_name)
-projects = dbs.ProjectsColl(db_name)
+
+tables_dict = {
+    "Users": dbs.UsersTable(),
+    "Projects": dbs.ProjectsTable(),
+    "Chats": dbs.ChatsTable(),
+    "UserProjects": dbs.UserProjectsTable(),
+    "ChatsProjects": dbs.ChatProjectsTable(),
+    "ChatsBlacklist": dbs.ChatsBlacklistTable(),
+    "MessagesTable": dbs.MessagesTable(),
+}
+
+users, projects, chats, user_projects, chats_projects, chats_blacklist = (
+    tables_dict["Users"],
+    tables_dict["Projects"],
+    tables_dict["Chats"],
+    tables_dict["UserProjects"],
+    tables_dict["ChatsProjects"],
+    tables_dict["ChatsBlacklist"],
+)
 
 # Initialize session state for login
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["role"] = None
-    st.session_state["email"] = None
+    st.session_state["user"] = None
     st.session_state["registration_mode"] = False
     st.session_state["registration_success"] = False
     st.session_state["registered_role"] = None
@@ -76,11 +93,11 @@ if not st.session_state["logged_in"]:
     st.markdown("<h1 class='main-header'>Welcome to VoxPopuli 🗣️</h1>", unsafe_allow_html=True)
     st.markdown("<p class='sub-header'>Collaborative Research Platform for Voice and Opinion Analysis</p>",
                 unsafe_allow_html=True)
-    st.markdown("<p class='credits'>By: Amit Cohen, Eren Fishbein, Roey Fabian, Ron Sharabi</p>",
+    st.markdown("<p class='credits'>By: Amit Cohen, Eran Fishbein, Roey Fabian, Ron Sharabi</p>",
             unsafe_allow_html=True)
 
     # Create two columns for layout
-    col1, spacer, col2 = st.columns([0.8, 0.2, 1])
+    col1, spacer, col2, spacer, col3 = st.columns([0.8, 0.2, 0.8, 0.2, 0.8])
 
     # Column 1: Login Form
     with col1:
@@ -89,27 +106,26 @@ if not st.session_state["logged_in"]:
         # Role selection and login
         role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
 
-        # Set default email and password to blank when first entering the site
-        email = st.text_input("Email", key="email_input", value="")
+        # Set default user and password to blank when first entering the site
+        userid = st.text_input("Username", key="userid_input", value="")
         password = st.text_input("Password", type="password", key="password_input", value="")
 
         # Login button
         if st.button("Login", key="login_button"):
-            if not email or not password:
-                st.error("Please enter both email and password.")
+            if not userid or not password:
+                st.error("Please enter both Username and password.")
             else:
-                # Find user by email - using case-insensitive comparison
-                user_data = users.get_user_by_email(email)
+                # Find user by user - using case-insensitive comparison
+                user_data = users.get_user_by_id(userid)
 
 
                 if user_data:
                     # Get the stored hash from the database
                     stored_hashed_password = user_data['HashedPassword']
                     user_role = user_data['Role']
-
                     # Check if role matches
                     if role != user_role:
-                        st.error(f"This email is registered as a {user_role}, not a {role}.")
+                        st.error(f"This user is registered as a {user_role}, not a {role}.")
                     else:
                         try:
                             # Check if the provided password matches the hashed password
@@ -117,7 +133,8 @@ if not st.session_state["logged_in"]:
                                 # Login successful for both user and researcher roles
                                 st.session_state["logged_in"] = True
                                 st.session_state["role"] = user_role
-                                st.session_state["email"] = user_data['Email']
+                                st.session_state["user"] = user_data['UserID']
+                                st.session_state['password'] = password
                                 st.success("Login successful!")
                                 st.rerun()
                             else:
@@ -125,7 +142,7 @@ if not st.session_state["logged_in"]:
                         except Exception as e:
                             st.error(f"Login error: {str(e)}")
                 else:
-                    st.error("User not found. Please check your email or register.")
+                    st.error("User not found. Please check your username or register.")
 
         # st.markdown("</div>", unsafe_allow_html=True)
 
@@ -141,7 +158,7 @@ if not st.session_state["logged_in"]:
 
         Join our community to contribute to important research initiatives.
         """)
-
+    with col3:
         st.markdown("### Features")
         st.markdown("""
         - Participate in research conversations
@@ -154,13 +171,13 @@ if not st.session_state["logged_in"]:
 else:
     # Redirect to the appropriate app based on role
     if st.session_state["role"] == "User":
-        user_app(st.session_state["email"])
+        user_app(st.session_state["user"], tables_dict, st.session_state['password'])
     elif st.session_state["role"] == "Researcher":
-        researcher_app(st.session_state["email"], users, projects)
+        researcher_app(st.session_state["user"], tables_dict)
 
     # Optional logout button in sidebar
     if st.sidebar.button("Logout", key="main_logout"):
         st.session_state["logged_in"] = False
         st.session_state["role"] = None
-        st.session_state["email"] = None
+        st.session_state["user"] = None
         st.rerun()

@@ -474,8 +474,103 @@ class MultiPlatformMessageMonitor:
             print(
                 f"[{time_str}] [{platform}] [{room_name}] {display_name} sent a {msgtype} message: {content.get('body', 'Message')}")
 
+    async def generate_qr(self):
+        """Send a message to the Signal bot to create a room, then retrieve and return the QR code."""
+        if not self.access_token:
+            print("Not logged in. Cannot generate QR code.")
+            return None
+
+        create_room_url = f"{self.synapse_url}/_matrix/client/v3/createRoom"
+        message_url_template = f"{self.synapse_url}/_matrix/client/v3/rooms/{{room_id}}/send/m.room.message"
+
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                # Step 1: Create a direct chat with the Signal bot
+                print(f"Creating a direct chat with the Signal bot: {SIGNAL_BOT_MXID}")
+                create_room_payload = {
+                    "is_direct": True,
+                    "invite": [SIGNAL_BOT_MXID],
+                    "preset": "trusted_private_chat"
+                }
+                create_room_response = await client.post(
+                    create_room_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    json=create_room_payload
+                )
+
+                if create_room_response.status_code != 200:
+                    print(f"Failed to create a direct chat: {create_room_response.status_code} - {create_room_response.text}")
+                    return None
+
+                room_id = create_room_response.json().get("room_id")
+                print(f"Direct chat created with Signal bot. Room ID: {room_id}")
+
+                # Step 2: Send the 'login qr' message to the Signal bot
+                print("Requesting QR code from the Signal bot...")
+                message_url = message_url_template.format(room_id=room_id)
+                login_message_payload = {
+                    "msgtype": "m.text",
+                    "body": "login qr"
+                }
+                login_message_response = await client.post(
+                    message_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    json=login_message_payload
+                )
+
+                if login_message_response.status_code != 200:
+                    print(f"Failed to send 'login qr' message: {login_message_response.status_code} - {login_message_response.text}")
+                    return None
+
+                print("Waiting for QR code message...")
+                await asyncio.sleep(10)  # Wait for the QR code message to arrive
+
+                # Step 3: Retrieve the QR code from the room's messages
+                room_events_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/messages"
+                response = await client.get(
+                    room_events_url,
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    params={"limit": 10, "dir": "b"}  # Fetch the last 10 messages
+                )
+
+                if response.status_code != 200:
+                    print(f"Failed to fetch room messages: {response.status_code} - {response.text}")
+                    return None
+
+                events = response.json().get("chunk", [])
+                for event in events:
+                    content = event.get("content", {})
+                    msgtype = content.get("msgtype")
+                    sender = event.get("sender", "")
+
+                    if sender == SIGNAL_BOT_MXID and msgtype == "m.image" and content.get("body", "").startswith("sgnl://"):
+                        # Generate the QR code from the body content
+                        qr_link = content.get("body")
+                        try:
+                            from io import BytesIO
+                            import qrcode
+
+                            # Generate QR code
+                            qr = qrcode.QRCode()
+                            qr.add_data(qr_link)
+                            qr.make(fit=True)
+                            img = qr.make_image(fill="black", back_color="white")
+
+                            print("QR code successfully generated.")
+                            return img
+                        except Exception as e:
+                            print(f"Failed to generate QR code: {str(e)}")
+                            return None
+
+                print("QR code message not found.")
+                return None
+
+            except Exception as e:
+                print(f"Error during QR code generation: {str(e)}")
+                return None
+
     async def insert_msg_to_mongo(self, room_id, event):
-        """Format and print a message to the terminal"""
+        """Insert a message into MongoDB."""
         lines = []
         content = event.get("content", {})
         msgtype = content.get("msgtype")
@@ -501,28 +596,6 @@ class MultiPlatformMessageMonitor:
         # Extract username from sender ID
         username = sender.split(":")[0][1:]  # Remove @ and domain
         if room_info["bot_mxid"] == sender:
-            if msgtype == "m.image" and content.get("body", "").startswith("sgnl://"):
-                # Generate the QR code from the body content
-                qr_link = content.get("body")
-                try:
-                    from io import BytesIO
-                    import qrcode
-
-                    # Generate QR code
-                    qr = qrcode.QRCode()
-                    qr.add_data(qr_link)
-                    qr.make(fit=True)
-                    img = qr.make_image(fill="black", back_color="white")
-
-                    # Save the QR code as an image file
-                    # file_name = f"qr_code_{event.get('event_id')}.png"
-                    # img.save(file_name)
-                    print(f"QR code for user {bridge_user}")
-                    return img
-                except Exception as e:
-                    print(f"Failed to generate QR code: {str(e)}")
-                return
-            else:
                 return
 
         # Process different message types

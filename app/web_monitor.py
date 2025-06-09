@@ -20,6 +20,7 @@ class WebMonitor:
         )
 
     async def login(self):
+        print(f"WebMonitor: Logging in using user {self.username}")
         """Log in to the Matrix server."""
         success = await self.monitor.login()
         if success:
@@ -35,12 +36,13 @@ class WebMonitor:
         else:
             return {"status": "error", "message": "Registration failed. Username might already exist."}
     
-        # Function to handle user registration
-    async def handle_registration(username, password, server_url):
+    async def handle_registration(self, username, password, server_url):
+        """Function to handle user registration"""
         # Initialize the WebMonitor instance
         web_monitor = WebMonitor(username=username, password=password, server_url=server_url)
         # Call the register method
-        result = await web_monitor.register()
+        result = asyncio.run(web_monitor.register(username, password))
+        # result = await web_monitor.register()
         return result
 
     async def generate_qr_code(self):
@@ -78,22 +80,18 @@ class WebMonitor:
         else:
             return {"status": "error", "message": "Failed to start monitoring messages."}
 
-    async def generate_qr_code_and_display(self):
-        """Generate a QR code and display it in the web app."""
+    async def generate_qr_code_and_display(self, platform='whatsapp'):
+        """Generate a QR code for the selected platform and display it in the web app."""
         try:
-            # Call the generate_qr method from MultiPlatformMessageMonitor
-            qr_image = await self.monitor.generate_qr()
+            qr_image = await self.monitor.generate_qr(platform=platform)
             if qr_image:
-                # Display the QR code in the web app
                 buffer = BytesIO()
                 qr_image.save(buffer, format="PNG")
                 buffer.seek(0)
-
-                st.image(buffer, caption="Generated QR Code", use_column_width=True)
-                return {"status": "success", "message": "QR code displayed successfully."}
+                return buffer
             else:
-                st.error("Failed to generate QR code.")
-                return {"status": "error", "message": "Failed to generate QR code."}
+                st.error(f"Failed to generate QR code for {platform}.")
+                return {"status": "error", "message": f"Failed to generate QR code for {platform}."}
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
@@ -125,6 +123,47 @@ class WebMonitor:
         except Exception as e:
             st.error(f"An error occurred during login: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
+    
+    async def get_joined_chats(self, group=True, chats_blacklist=[]):
+        """Return a list of joined rooms/chats with platform info."""
+        print(f"WebMonitor: Get joined chats for user {self.username}") 
+        try:
+            joined = await self.monitor.list_rooms(room_type="joined", group=group, chats_blacklist=chats_blacklist)
+            return {"status": "success", "joined_chats": joined}
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get joined chats: {str(e)}"}
+
+    async def get_invited_chats(self, group=True, chats_blacklist=[]):
+        print(f"WebMonitor: Get invited chats for user {self.username}") 
+        """Return a list of invited (pending) rooms/chats with platform info."""
+        try:
+            invites = await self.monitor.list_rooms(room_type="invited", group=group, chats_blacklist=chats_blacklist)
+            return {"status": "success", "invited_chats": invites}
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get invited chats: {str(e)}"}
+    
+    async def approve_room(self, room_id):
+        """Approve (join/accept) a pending invite to a room."""
+        try:
+            result = await self.monitor.approve_room(room_id)
+            if result:
+                return {"status": "success", "message": f"Room {room_id} approved (joined) successfully."}
+            else:
+                return {"status": "error", "message": f"Failed to approve (join) room {room_id}."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
+    async def disable_room(self, room_id):
+        """Disable (leave) a room."""
+        try:
+            result = await self.monitor.disable_room(room_id)
+            if result:
+                return {"status": "success", "message": f"Room {room_id} disabled (left) successfully."}
+            else:
+                return {"status": "error", "message": f"Failed to disable (leave) room {room_id}."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
 
     async def delete_user(self):
         """Delete the current user from the Matrix server using the Synapse Admin API."""
@@ -134,5 +173,24 @@ class WebMonitor:
                 return {"status": "success", "message": "User deleted successfully.", "data": result}
             else:
                 return {"status": "error", "message": "Failed to delete user."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+    
+    async def get_room_stats(self, room_ids):
+        """Get stats for a list of room_ids (number of members in each room)."""
+        try:
+            stats = await self.monitor.get_room_stats(room_ids)
+            return {"status": "success", "room_stats": stats}
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to get room stats: {str(e)}"}
+    
+    async def change_password(self, new_password):
+        """Change the password for the current user via the Matrix API."""
+        try:
+            result = await self.monitor.change_password(new_password)
+            if result:
+                return {"status": "success", "message": "Password changed successfully."}
+            else:
+                return {"status": "error", "message": "Failed to change password."}
         except Exception as e:
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
