@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
+
 # MultiPlatformMessageMonitor: Matrix bridge monitor for WhatsApp, Signal, Telegram
 # Handles login, room management, message monitoring, and MongoDB integration
-# Author: [Your Name]
-# Date: [Date]
 
 import asyncio
 import os
@@ -15,11 +13,10 @@ import re
 from typing import Dict, List, Optional
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from io import BytesIO
+# from io import BytesIO
 import qrcode
-import argparse
+# import argparse
 
-# from matrix import m_monitor
 
 load_dotenv()
 
@@ -51,23 +48,6 @@ class BridgeConfig:
         self.bot_mxid = bot_mxid
         self.room_indicators = room_indicators  # Strings that indicate this type of bridge room
         self.message_patterns = message_patterns or {}
-
-class mongo_connector():
-    """
-    MongoDB connector utility for accessing collections.
-    """
-    def __init__(self):
-        self.db_connection_string = MONGODB_URI
-        self.client = MongoClient(self.db_connection_string)
-        self.db = None
-
-    def get_client(self):
-        # Return MongoDB client instance
-        return self.client
-    
-    def get_db(self, db_name, collection_name):
-        # Return a collection handle for the given db and collection
-        return self.client[db_name][collection_name]
 
 class MultiPlatformMessageMonitor:
     """
@@ -209,129 +189,6 @@ class MultiPlatformMessageMonitor:
                 print(f"Exception during login: {str(e)}")
                 return False
 
-    async def find_bridge_rooms(self):
-        """
-        Find all joined rooms that are bridge rooms for configured platforms.
-        """
-        if not self.access_token:
-            print("Not logged in. Cannot find bridge rooms.")
-            return False
-
-        # Get joined rooms
-        joined_rooms_url = f"{self.synapse_url}/_matrix/client/v3/joined_rooms"
-
-        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
-            try:
-                print(f"Getting joined rooms from {joined_rooms_url}")
-
-                response = await client.get(
-                    joined_rooms_url,
-                    headers={"Authorization": f"Bearer {self.access_token}"}
-                )
-
-                print(f"Joined rooms response: {response.status_code}")
-
-                if response.status_code != 200:
-                    print(f"Failed to get joined rooms: {response.text}")
-                    return False
-
-                rooms = response.json().get("joined_rooms", [])
-                print(f"Found {len(rooms)} joined rooms. Filtering for bridge rooms...")
-
-                # Get state for each room to identify bridge rooms
-                for room_id in rooms:
-                    print(f"Checking room: {room_id}")
-                    await self.check_if_bridge_room(room_id, client)
-
-                print(f"Identified {len(self.bridge_rooms)} bridge rooms")
-
-                if not self.bridge_rooms:
-                    print("No bridge rooms found. Make sure your messaging platforms are connected in Matrix.")
-                    return False
-
-                # Print found rooms grouped by platform
-                platforms = {}
-                for room_id, room_data in self.bridge_rooms.items():
-                    platform = room_data['platform']
-                    if platform not in platforms:
-                        platforms[platform] = []
-                    platforms[platform].append(room_data)
-
-                for platform, rooms in platforms.items():
-                    print(f"\n{platform.upper()} Rooms ({len(rooms)}):")
-                    for room_data in rooms:
-                        print(f"  - {room_data['name']} ({room_data['room_id']})")
-
-                return True
-
-            except Exception as e:
-                print(f"Error finding bridge rooms: {str(e)}")
-                return False
-
-    async def check_if_bridge_room(self, room_id, client):
-        """
-        Check if a room is a bridge room and identify which platform it belongs to.
-        """
-        state_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/state"
-
-        try:
-            response = await client.get(
-                state_url,
-                headers={"Authorization": f"Bearer {self.access_token}"}
-            )
-
-            if response.status_code != 200:
-                print(f"Failed to get state for room {room_id}: {response.status_code}")
-                return
-
-            state_events = response.json()
-            room_name = None
-            detected_platform = None
-
-            # Get the room name first
-            for event in state_events:
-                if event.get("type") == "m.room.name":
-                    room_name = event.get("content", {}).get("name")
-                    break
-
-            # Check each configured platform
-            for platform, config in self.bridge_configs.items():
-                is_bridge_room = False
-
-                # Check if the platform's bot is in the room
-                for event in state_events:
-                    if (event.get("type") == "m.room.member" and
-                            event.get("state_key") == config.bot_mxid and
-                            event.get("content", {}).get("membership") == "join"):
-                        is_bridge_room = True
-                        detected_platform = platform
-                        print(f"Found {config.name} bot in room {room_id}")
-                        break
-
-                # Also check room name for platform indicators
-                if room_name:
-                    for indicator in config.room_indicators:
-                        if indicator in room_name:
-                            is_bridge_room = True
-                            detected_platform = platform
-                            print(f"Room name '{room_name}' indicates a {config.name} room")
-                            break
-
-                if is_bridge_room:
-                    break
-
-            if detected_platform:
-                self.bridge_rooms[room_id] = {
-                    "room_id": room_id,
-                    "name": room_name or f"Unnamed {self.bridge_configs[detected_platform].name} Chat",
-                    "platform": detected_platform,
-                    "bot_mxid": self.bridge_configs[detected_platform].bot_mxid,
-                    "config": self.bridge_configs[detected_platform]
-                }
-                print(f"Added {detected_platform} room: {room_name or 'Unnamed'} ({room_id})")
-
-        except Exception as e:
-            print(f"Error checking room {room_id}: {str(e)}")
 
     async def monitor_messages(self):
         """
@@ -714,77 +571,7 @@ class MultiPlatformMessageMonitor:
                 print(f"Failed to leave the room {room_id}: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"Exception while leaving the room {room_id}: {str(e)}")
-            
-    async def insert_msg_to_mongo(self, room_id, event):
-        """
-        Insert a message event into MongoDB for archiving and analytics.
-        """
-        lines = []
-        content = event.get("content", {})
-        msgtype = content.get("msgtype")
-        sender = event.get("sender", "Unknown")
-        event_id = event.get("event_id")
-        bridge_user= self.user_id.split(':')[0][1:]  # Remove @ and domain
 
-        # Skip non-message events or redactions
-        if not msgtype or msgtype == "m.room.redaction":
-            return
-
-        # Get chat info
-        room_info = self.bridge_rooms[room_id]
-        room_name = room_info["name"]
-        # bridge_user = room_info["config"]["user_id"]
-        platform = room_info["platform"].upper()
-        bridge_config = room_info["config"]
-
-        # Format timestamp
-        ts = event.get("origin_server_ts", 0) / 1000  # Convert ms to seconds
-        time_str = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-
-        # Extract username from sender ID
-        username = sender.split(":")[0][1:]  # Remove @ and domain
-        if room_info["bot_mxid"] == sender:
-                return
-
-        # Process different message types
-        elif msgtype in ["m.text", "m.notice"]:
-            body = content.get("body", "")
-        
-        elif msgtype == "m.image":
-            body = 'Image'
-
-        elif msgtype == "m.audio":
-            body = 'Audio'
-
-        elif msgtype == "m.video":
-            body = 'Video'
-
-        elif msgtype == "m.file":
-            body = 'File'
-        elif msgtype == "m.location":
-            body = 'Location'
-        elif msgtype == "m.emote":
-            body = 'Emote'
-        else:
-            body = 'Unknown'
-
-        record = {
-                "event_id": event_id,
-                "bridge_user": bridge_user , # Add the user_id of the monitor
-                "room_id": room_id.split(':')[0],  # Remove @ and domain
-                "room_name": room_name,
-                "sender_id": username,
-                # "message_type": msgtype,
-                "message_body": body,
-                "timestamp": time_str,
-                "platform": platform,
-                "created_at": datetime.now(timezone.utc)
-            }
-
-        mongo_conn = mongo_connector()
-        db = mongo_conn.get_db('VoxPopuli', 'PRJ001')
-        db.insert_one(record)
-        print(f'Message {event_id} was recieved')
 
     async def detect_room_platform(self, room_id, client, invite_state=None):
         """

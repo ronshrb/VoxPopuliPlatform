@@ -112,19 +112,6 @@ def user_app(userid, tables_dict, password):
         col1, col2 = st.columns([1,2])
         with col1:
             st.markdown("### 🔍 Filter Your Chats")
-            # Project filter
-            # if projects_info:
-            #     project_id_to_name = {pid: info['ProjectName'] for pid, info in projects_info.items()}
-            #     selected_project_id = st.selectbox(
-            #         "Select a Project",
-            #         list(project_id_to_name.keys()),
-            #         format_func=lambda pid: project_id_to_name[pid],
-            #         key="project_filter"
-            #     )
-            # else:
-            #     st.markdown("No projects available.")
-            #     selected_project_id = None
-            # selected_project = projects_info[selected_project_id] if selected_project_id is not None else None
             # Platform filter
             selected_platforms = st.pills(
                 "Select Platforms",
@@ -350,7 +337,18 @@ def user_app(userid, tables_dict, password):
                             "username": userid
                         }
                     )
+
+                    # requests.post(
+                    #         f"{server}/api/user/whitelist-rooms",
+                    #         json={
+                    #             "username": userid,
+                    #             "room_ids": []
+                    #         }
+                    #     )
+                    
+                    chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
                     users.delete_user(userid)
+
                     st.success('Your account has been deleted. Logging out...')
                     st.session_state["logged_in"] = False
                     st.session_state["role"] = None

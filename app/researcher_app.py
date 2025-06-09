@@ -249,9 +249,6 @@ def researcher_app(userid, tables_dict):
                                             role="User",
                                             active=True,
                                         )
-                                        user_projects.add_user_to_project(
-                                            user_id=username
-                                        )
 
                                         json = {   # send to server
                                             "username": username,

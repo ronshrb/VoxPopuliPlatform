@@ -64,13 +64,13 @@ class WebMonitor:
         else:
             return {"status": "error", "message": "Failed to accept invites."}
 
-    async def find_bridge_rooms(self):
-        """Find all bridge rooms for the configured platforms."""
-        success = await self.monitor.find_bridge_rooms()
-        if success:
-            return {"status": "success", "message": "Bridge rooms found successfully.", "rooms": self.monitor.bridge_rooms}
-        else:
-            return {"status": "error", "message": "Failed to find bridge rooms."}
+    # async def find_bridge_rooms(self):
+    #     """Find all bridge rooms for the configured platforms."""
+    #     success = await self.monitor.find_bridge_rooms()
+    #     if success:
+    #         return {"status": "success", "message": "Bridge rooms found successfully.", "rooms": self.monitor.bridge_rooms}
+    #     else:
+    #         return {"status": "error", "message": "Failed to find bridge rooms."}
 
     async def monitor_messages(self):
         """Start monitoring messages in bridge rooms."""
