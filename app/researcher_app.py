@@ -63,28 +63,30 @@ def researcher_app(userid, tables_dict):
 
     st.sidebar.success(f"Welcome, {userid}!")
 
-   
-    messages_df = messages.get_df(chat_ids=['hovOAmJBtnOuQFpvBu'])
-    chats_summary = messages.get_chats_summary(messages_df)
+    # chats_ids = chats.get_chats_ids_by_user(userid)
+    all_users_ids = users.get_users()['UserID'].tolist()
+    messages_df = messages.get_df(user_ids=all_users_ids)
+    chats_summary = messages.get_chats_summary(messages_df, chats.get_df())
 
 
     # Sidebar menu
     menu = st.sidebar.selectbox(
         "Dashboard Menu",
-        ["Project Analytics", "Chat Analysis", "User Management"]
+        ["Chats Overview", "Chats Analysis", "User Management"]
     )
 
     # Project Analytics Page (Blank)
-    if menu == "Project Analytics":
-        st.header("Project Analytics")
+    if menu == "Chats Overview":
+        st.header("Chats Overview")
         st.markdown("This page is under construction.")
         st.dataframe(chats_summary, use_container_width=True, hide_index=True)
 
     # Chat Analysis Page
-    elif menu == "Chat Analysis":
-        st.header("Chat Analysis")
+    elif menu == "Chats Analysis":
+        st.header("Chats Analysis")
         st.markdown("Analyze chats for the selected project.")
-        st.dataframe(messages_df, use_container_width=True)
+        
+        st.dataframe(messages_df, use_container_width=True, hide_index=True)
 
     # User Management Page
     elif menu == "User Management":
@@ -171,6 +173,7 @@ def researcher_app(userid, tables_dict):
                 st.info("Usernames may only contain: a-z, 0-9, = _ - . / +")
                 with st.form("register_user_form"):
                     # Input fields for registration
+                    role = st.selectbox("Role", ["User", "Researcher"], key="register_role_select")
                     username = st.text_input("Username")
                     password = st.text_input("Password", type="password")
                     confirm_password = st.text_input("Confirm Password", type="password")
@@ -204,7 +207,7 @@ def researcher_app(userid, tables_dict):
                                             user_id=username, 
                                             hashed_password=hashed_password,
                                             creator_id=userid, 
-                                            role="User",
+                                            role=role,
                                             active=True,
                                         )
 

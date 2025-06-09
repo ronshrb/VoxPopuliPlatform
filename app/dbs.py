@@ -259,37 +259,6 @@ class ProjectsTable:
             session.rollback()
             print(f"Error in add_project: {e}")
 
-    # def add_researcher(self, project_id, researcher_id):
-    #     """
-    #     Add a researcher to a project in the user_projects table.
-    #     """
-    #     try:
-    #         stmt = insert(self.user_projects_table).values(
-    #             userid=researcher_id,
-    #             projectid=project_id
-    #         )
-    #         session.execute(stmt)
-    #         session.commit()
-    #     except Exception as e:
-    #         session.rollback()
-    #         if 'duplicate key' not in str(e):
-    #             print(f"Error in add_researcher: {e}")
-
-    # def remove_researcher(self, project_id, researcher_id):
-    #     """
-    #     Remove a researcher from a project in the user_projects table.
-    #     """
-    #     try:
-    #         from sqlalchemy import delete
-    #         stmt = delete(self.user_projects_table).where(
-    #             (self.user_projects_table.c.userid == researcher_id) &
-    #             (self.user_projects_table.c.projectid == project_id)
-    #         )
-    #         session.execute(stmt)
-    #         session.commit()
-    #     except Exception as e:
-    #         session.rollback()
-    #         print(f"Error in remove_researcher: {e}")
 
     def add_user(self, project_id, user_id):
         """
@@ -325,110 +294,6 @@ class ProjectsTable:
             session.rollback()
             print(f"Error in remove_user from project: {e}")
 
-    def get_projects(self):
-        """
-        Fetch all projects as a list of dictionaries.
-        """
-        result = session.execute(select(self.projects_table)).fetchall()
-        return [
-            {
-                'ProjectID': row._mapping['projectid'],
-                'ProjectName': row._mapping['projectname'],
-                'Active': row._mapping['active'],
-                'CreatedAt': row._mapping['createdat'],
-                'LastUpdate': row._mapping['lastupdate'],
-            }
-            for row in result
-        ] if result else []
-
-    # def get_project_researchers(self, project_id):
-    #     """
-    #     Get a list of researcher IDs associated with a project.
-    #     """
-    #     # Return list of researcher IDs for a project from user_projects table
-    #     try:
-    #         result = session.execute(
-    #             select(self.user_projects_table.c.userid).where(self.user_projects_table.c.projectid == project_id)
-    #         ).fetchall()
-    #         return [row[0] for row in result] if result else []
-    #     except Exception as e:
-    #         session.rollback()
-    #         print(f"Error in get_project_researchers: {e}")
-    #         return []
-
-    # def get_projects_by_researcher(self, researcher_id):
-    #     """
-    #     Get a list of projects for a given researcher.
-    #     """
-    #     # Return list of projects for a given researcher from user_projects table
-    #     try:
-    #         # Get all project IDs for this researcher
-    #         result = session.execute(
-    #             select(self.user_projects_table.c.projectid).where(self.user_projects_table.c.userid == researcher_id)
-    #         ).fetchall()
-    #         project_ids = [row[0] for row in result] if result else []
-    #         if not project_ids:
-    #             return []
-    #         # Now fetch project details for these IDs
-    #         result = session.execute(
-    #             select(self.projects_table).where(self.projects_table.c.projectid.in_(project_ids))
-    #         ).fetchall()
-    #         # Return PascalCase keys for app compatibility
-    #         return [
-    #             {
-    #                 'ProjectID': row._mapping['projectid'],
-    #                 'ProjectName': row._mapping['projectname'],
-    #                 'Active': row._mapping['active'],
-    #                 'CreatedAt': row._mapping['createdat'],
-    #                 'LastUpdate': row._mapping['lastupdate'],
-    #             }
-    #             for row in result
-    #         ] if result else []
-    #     except Exception as e:
-    #         session.rollback()
-    #         print(f"Error in get_projects_by_researcher: {e}")
-    #         return []
-
-    def get_project_by_id(self, project_id):
-        """
-        Fetch a project by its project_id.
-        """
-        result = session.execute(select(self.projects_table).where(self.projects_table.c.projectid == project_id)).fetchone()
-        if result:
-            d = dict(result._mapping)
-            return {
-                'ProjectID': d.get('projectid'),
-                'ProjectName': d.get('projectname'),
-                'Active': d.get('active'),
-                'CreatedAt': d.get('createdat'),
-                'LastUpdate': d.get('lastupdate'),
-            }
-        return None
-    
-    def get_projects_by_ids(self, project_ids):
-        """
-        Fetch multiple projects by their project_ids.
-        """
-        # Accepts a list of project_ids and returns a dict: {projectid: {ProjectName, Active, CreatedAt, LastUpdate}}
-        if not project_ids:
-            return {}
-        result = session.execute(
-            select(self.projects_table).where(self.projects_table.c.projectid.in_(project_ids))
-        ).fetchall()
-        projects_dict = {}
-        for row in result:
-            d = dict(row._mapping)
-            projects_dict[d['projectid']] = {
-                'ProjectName': d.get('projectname'),
-                'Active': d.get('active'),
-                'CreatedAt': d.get('createdat'),
-                'LastUpdate': d.get('lastupdate'),
-            }
-        return projects_dict
-
-    # def get_project_name_by_id(self, project_id):
-    #     result = session.execute(select(self.projects_table.c.projectname).where(self.projects_table.c.projectid == project_id)).fetchone()
-    #     return result[0] if result else None
 
 class ChatsTable:
     """
@@ -498,12 +363,25 @@ class ChatsTable:
                 self.add_chat(chat_id, chat_name, platform, user_id)
                 # self.update_chat_donation(chat_id)
 
-    def get_chats(self):
+    def get_df(self):
         """
-        Fetch all chats as a DataFrame.
+        Fetch all chats as a DataFrame with renamed columns.
         """
         result = session.execute(select(self.chats_table)).fetchall()
-        return pd.DataFrame(result, columns=result[0].keys()) if result else pd.DataFrame()
+        if not result:
+            return pd.DataFrame()
+        df = pd.DataFrame(result, columns=result[0]._mapping.keys())
+        columns_renaming = {
+            'chatid': 'ChatID',
+            'chatname': 'Chat Name',
+            'platform': 'Platform',
+            'userid': 'UserID',
+            'active': 'Donated',
+            'createdat': 'CreatedAt',
+            'updatedat': 'UpdatedAt',
+        }
+        df = df.rename(columns=columns_renaming)
+        return df
 
     def get_chat_by_id(self, chat_id):
         """
@@ -666,13 +544,13 @@ class MessagesTable:
             # user = path.split('/')[0]
             # chat_id = path.split('/')[1] if len(path.split('/')) > 1 else None
             # date = path.split('/')[2].split('.')[0] if len(path.split('/')) > 2 else None
-            if df:
+            if df is not None:
                 df = pd.concat([df, self.blob_to_dataframe(path)], ignore_index=True)
             else:
                 df = self.blob_to_dataframe(path)
         return df
     
-    def get_chats_summary(self, df):
+    def get_chats_summary(self, df, chats_df):
         """
         Get a summary of messages grouped by chat ID and user ID.
         """
@@ -685,21 +563,11 @@ class MessagesTable:
             summary['User'] = summary['User'].astype(str)
             summary.sort_values(by=['Chat ID', 'User'], inplace=True)
             summary.reset_index(drop=True, inplace=True)
-            # Convert to PascalCase for compatibility
-            summary.columns = [col.replace(' ', '') for col in summary.columns]
-            return summary
 
-# d = Messages()
-# print(d.get_df())
-    # def get_messages_by_user(self, user_id, blob_name):
-    #     """
-    #     Fetch messages for a specific user from a NDJSON file in GCP bucket.
-    #     """
-    #     bucket = self.client.bucket(self.bucket_name)
-    #     blob = bucket.blob(blob_name)
-    #     data = blob.download_as_bytes()
-    #     # Convert bytes to StringIO for pandas
-    #     df = pd.read_json(StringIO(data.decode('utf-8')), lines=True)
-    #     # Filter by user_id if needed
-    #     df = df[df['username'] == user_id]
-    #     return df
+            # Merge with chats_df to get chat names
+            summary = summary.merge(chats_df[['ChatID', 'Chat Name', 'Platform', 'Donated', 'CreatedAt']], left_on='Chat ID', right_on='ChatID', how='left')
+            summary.drop(columns=['ChatID'], inplace=True)
+            desired_order = ['Chat ID', 'User', 'Chat Name', 'Total Messages', 'Donated', 'Platform', 'CreatedAt']
+            summary = summary[desired_order]
+
+            return summary
