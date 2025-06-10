@@ -1104,14 +1104,21 @@ class MultiPlatformMessageMonitor:
         # Remove port if present in domain
         domain = self.synapse_url.split('//')[1].split(':')[0]
         user_id = f"@{user}:{domain}"
-        delete_url = f"{self.synapse_url}/_synapse/admin/v2/users/{user_id}"
+        delete_media_url = f"{self.synapse_url}/_synapse/admin/v1/users/{user_id}/media"
+        deactivate_user_url = f"{self.synapse_url}/_synapse/admin/v1/deactivate/{user_id}"
         headers = {"Authorization": f"Bearer {ADMIN_ACCESS_TOKEN}"}
+        body = {"erase" : True}
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             try:
-                response = await client.delete(delete_url, headers=headers)
+                response = await client.put(deactivate_user_url, headers=headers, json=body)
                 if response.status_code in [200, 204]:
                     print(f"Successfully deleted user: {user_id}")
-                    return True
+                    response = await client.delete(delete_url, headers=headers)
+                    if response.status_code in [200, 204]:
+                        print(f"Successfully deleted user's media: {user_id}")
+                    else:
+                        print(f"Failed to delete user's media {user_id}: {response.status_code} - {response.text}")
+                    return True  # return true even if media was not deleted
                 else:
                     print(f"Failed to delete user {user_id}: {response.status_code} - {response.text}")
                     return False
