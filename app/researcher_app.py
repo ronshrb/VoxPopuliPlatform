@@ -84,7 +84,7 @@ def researcher_app(userid, tables_dict):
     elif menu == "Chats Analysis":
         st.header("Chats Analysis")
         st.markdown("Analyze chats for the selected project.")
-
+        # st.radio("Pick a chat to analyze:", options=messages_df['Chat ID'].tolist(), key="chat_select")
         st.dataframe(messages_df, use_container_width=True, hide_index=True)
 
     # User Management Page
@@ -192,36 +192,47 @@ def researcher_app(userid, tables_dict):
                             # Run the registration process
                             with st.spinner("Registering user..."):
                                 try:
-                                    # Create a WebMonitor instance with consistent server URL
-                                    server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
-                                    web_monitor = WebMonitor(
-                                        username=username, 
-                                        password=password,
-                                        server_url=server_url
-                                    )
-                                    # Properly await the async register method
-                                    result = asyncio.run(web_monitor.register()) # register on server
-                                    if result:
-                                        users.add_user(  # register user in the database
+                                    if role == "User":
+                                        # Create a WebMonitor instance with consistent server URL
+                                        server_url = "http://vox-populi.dev:8008"  # Use this URL consistently
+                                        web_monitor = WebMonitor(
+                                            username=username, 
+                                            password=password,
+                                            server_url=server_url
+                                        )
+                                        # Properly await the async register method
+                                        result = asyncio.run(web_monitor.register()) # register on server
+                                        if result:
+                                            users.add_user(  # register user in the database
+                                                user_id=username, 
+                                                hashed_password=hashed_password,
+                                                creator_id=userid, 
+                                                role=role,
+                                                active=True,
+                                            )
+
+                                            json = {   # send to server
+                                                "username": username,
+                                                "password": password
+                                            }
+                                            result = requests.post(f"{server}/api/user/create", json=json)
+                                            if not result.json().get("success"):
+                                                st.error(f"Error registering user on server: {result.json().get('message', 'Unknown error')}")
+                                                return
+                                            else:
+                                                st.success(f"User {username} registered successfully!")
+                                        else:
+                                            st.error("Registration failed. Username might already exist.")
+                                    else:
+                                        # For researcher role, just register in the database
+                                        users.add_user(
                                             user_id=username, 
                                             hashed_password=hashed_password,
                                             creator_id=userid, 
                                             role=role,
                                             active=True,
                                         )
-
-                                        json = {   # send to server
-                                            "username": username,
-                                            "password": password
-                                        }
-                                        result = requests.post(f"{server}/api/user/create", json=json)
-                                        if not result.json().get("success"):
-                                            st.error(f"Error registering user on server: {result.json().get('message', 'Unknown error')}")
-                                            return
-                                        else:
-                                            st.success(f"User {username} registered successfully!")
-                                    else:
-                                        st.error("Registration failed. Username might already exist.")
+                                        st.success(f"Researcher {username} registered successfully!")
                                 except Exception as e:
                                     st.error(f"Registration error: {str(e)}")
            

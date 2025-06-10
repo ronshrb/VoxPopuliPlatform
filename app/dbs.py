@@ -386,6 +386,7 @@ class ChatsTable:
             if result:
                 current_status = result[0]
                 new_status = not current_status  # Toggle status
+                print(new_status)
                 stmt = update(self.chats_table).where(
                     (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
                 ).values(
@@ -422,7 +423,9 @@ class ChatsTable:
         try:
             # Get all chat IDs for this user from chats table
             active_chats = session.execute(
-                select(self.chats.c.chatid).where(self.chats.c.active == True & self.chats.c.userid == userid)
+                select(self.chats_table.c.chatid).where(
+                    (self.chats_table.c.active == True) & (self.chats_table.c.userid == userid)
+                )
             ).fetchall()
             chat_ids = [row[0] for row in active_chats] if active_chats else []
             if not chat_ids:
