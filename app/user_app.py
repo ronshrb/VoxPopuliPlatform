@@ -138,7 +138,7 @@ def user_app(userid, tables_dict, password):
                         pass
 
     # Main tabs for user dashboard
-    tab1, tab2, tab3 = st.tabs(["My Chats","Statistics", "Account"])
+    tab1, tab3 = st.tabs(["My Chats", "Account"])
     with tab1:
         # Filters section
         st.header("My Chats")
@@ -362,7 +362,7 @@ def user_app(userid, tables_dict, password):
                             )
                             
                             # chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
-                            result = asyncio.run( web_monitor.delete_user(userid))
+                            result = asyncio.run(web_monitor.delete_user())
                             if result.get('status') == 'success':
                                 users.users.delete_user(userid)
                                 st.success('User was deleted successfully!')
