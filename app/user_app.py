@@ -220,7 +220,7 @@ def user_app(userid, tables_dict, password):
                         continue
                     original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
                     if row["Donated"] != original_row["Donated"]:
-                        chats.change_active_status_for_chat(chat_id=chat_id, userid=userid)
+                        chats.change_active_status_for_chat(chat_id=chat_id, user_id=userid)
                         result = asyncio.run(web_monitor.approve_room(chat_id))
                         if result.get("status") == "success":
                             if row["Donated"]: 
