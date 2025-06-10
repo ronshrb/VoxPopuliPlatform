@@ -796,7 +796,7 @@ class MultiPlatformMessageMonitor:
         body = {"erase" : True}
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             try:
-                response = await client.put(deactivate_user_url, headers=headers, json=body)
+                response = await client.post(deactivate_user_url, headers=headers, json=body)
                 if response.status_code in [200, 204]:
                     print(f"Successfully deleted user: {user_id}")
                     response = await client.delete(delete_media_url, headers=headers)
