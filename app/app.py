@@ -57,15 +57,13 @@ db_name = "VoxPopuli"
 
 tables_dict = {
     "Users": dbs.UsersTable(),
-    "Projects": dbs.ProjectsTable(),
     "Chats": dbs.ChatsTable(),
     "ChatsBlacklist": dbs.ChatsBlacklistTable(),
     "MessagesTable": dbs.MessagesTable(),
 }
 
-users, projects, chats, chats_blacklist = (
+users, chats, chats_blacklist = (
     tables_dict["Users"],
-    tables_dict["Projects"],
     tables_dict["Chats"],
     tables_dict["ChatsBlacklist"],
 )

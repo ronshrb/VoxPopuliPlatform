@@ -25,14 +25,14 @@ users_table = Table(
             Column('lastupdate', Date)
         )
 
-projects_table = Table(
-            'projects', metadata,
-            Column('projectid', String, primary_key=True),
-            Column('projectname', String),
-            Column('active', Boolean),
-            Column('createdat', Date),
-            Column('lastupdate', Date)
-        )
+# projects_table = Table(
+#             'projects', metadata,
+#             Column('projectid', String, primary_key=True),
+#             Column('projectname', String),
+#             Column('active', Boolean),
+#             Column('createdat', Date),
+#             Column('lastupdate', Date)
+#         )
 
 chats_table = Table(
             'chats', metadata,
@@ -234,65 +234,65 @@ class UsersTable:
             session.rollback()
             print(f"Error in delete_user: {e}")
 
-class ProjectsTable:
-    def __init__(self):
-        self.projects_table = projects_table
+# class ProjectsTable:
+#     def __init__(self):
+#         self.projects_table = projects_table
 
-    def add_project(self, project_id, desc, researchers=None, active=True):
-        """
-        Add a new project to the database.
-        """
-        try:
-            stmt = insert(self.projects_table).values(
-                projectid=project_id,
-                projectname=desc,
-                active=active,
-                createdat=datetime.now()
-            )
-            session.execute(stmt)
-            session.commit()
-            # Add researchers to user_projects association table
-            if researchers:
-                for researcher_id in researchers:
-                    self.add_researcher(project_id, researcher_id)
-        except Exception as e:
-            session.rollback()
-            print(f"Error in add_project: {e}")
+#     def add_project(self, project_id, desc, researchers=None, active=True):
+#         """
+#         Add a new project to the database.
+#         """
+#         try:
+#             stmt = insert(self.projects_table).values(
+#                 projectid=project_id,
+#                 projectname=desc,
+#                 active=active,
+#                 createdat=datetime.now()
+#             )
+#             session.execute(stmt)
+#             session.commit()
+#             # Add researchers to user_projects association table
+#             if researchers:
+#                 for researcher_id in researchers:
+#                     self.add_researcher(project_id, researcher_id)
+#         except Exception as e:
+#             session.rollback()
+#             print(f"Error in add_project: {e}")
 
 
-    def add_user(self, project_id, user_id):
-        """
-        Add a user to a project. Updates the project's user list.
-        """
-        try:
-            project = self.get_project_by_id(project_id)
-            if project:
-                users = project.get('users', '').split(',') if project.get('users') else []
-                if user_id not in users:
-                    users.append(user_id)
-                    stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
-                    session.execute(stmt)
-                    session.commit()
-        except Exception as e:
-            session.rollback()
-            print(f"Error in add_user to project: {e}")
+#     def add_user(self, project_id, user_id):
+#         """
+#         Add a user to a project. Updates the project's user list.
+#         """
+#         try:
+#             project = self.get_project_by_id(project_id)
+#             if project:
+#                 users = project.get('users', '').split(',') if project.get('users') else []
+#                 if user_id not in users:
+#                     users.append(user_id)
+#                     stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
+#                     session.execute(stmt)
+#                     session.commit()
+#         except Exception as e:
+#             session.rollback()
+#             print(f"Error in add_user to project: {e}")
 
-    def remove_user(self, project_id, user_id):
-        """
-        Remove a user from a project. Updates the project's user list.
-        """
-        try:
-            project = self.get_project_by_id(project_id)
-            if project:
-                users = project.get('users', '').split(',') if project.get('users') else []
-                if user_id in users:
-                    users.remove(user_id)
-                    stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
-                    session.execute(stmt)
-                    session.commit()
-        except Exception as e:
-            session.rollback()
-            print(f"Error in remove_user from project: {e}")
+#     def remove_user(self, project_id, user_id):
+#         """
+#         Remove a user from a project. Updates the project's user list.
+#         """
+#         try:
+#             project = self.get_project_by_id(project_id)
+#             if project:
+#                 users = project.get('users', '').split(',') if project.get('users') else []
+#                 if user_id in users:
+#                     users.remove(user_id)
+#                     stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
+#                     session.execute(stmt)
+#                     session.commit()
+#         except Exception as e:
+#             session.rollback()
+#             print(f"Error in remove_user from project: {e}")
 
 
 class ChatsTable:
@@ -308,6 +308,8 @@ class ChatsTable:
         Add a new chat to the database.
         """
         try:
+            if not chat_name:
+                chat_name = "Unknown Chat"
             stmt = insert(self.chats_table).values(
                 chatid=chat_id,
                 chatname=chat_name,
@@ -327,6 +329,8 @@ class ChatsTable:
         Update the name of a chat by chat_id.
         """
         try:
+            if not chat_name:
+                chat_name = "Unknown Chat"
             stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(chatname=chat_name, updatedat=datetime.now())
             session.execute(stmt)
             session.commit()

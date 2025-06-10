@@ -37,10 +37,9 @@ def register_user(username, password):
 def researcher_app(userid, tables_dict):
     """Main function for the Researcher Dashboard."""
     # tables
-    chats, users, projects, chats_blacklist, messages = (
+    chats, users, chats_blacklist, messages = (
         tables_dict["Chats"],
         tables_dict["Users"],
-        tables_dict["Projects"],
         tables_dict["ChatsBlacklist"],
         tables_dict["MessagesTable"]
     )
@@ -85,7 +84,7 @@ def researcher_app(userid, tables_dict):
     elif menu == "Chats Analysis":
         st.header("Chats Analysis")
         st.markdown("Analyze chats for the selected project.")
-        
+
         st.dataframe(messages_df, use_container_width=True, hide_index=True)
 
     # User Management Page
