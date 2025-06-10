@@ -23,7 +23,7 @@ def user_app(userid, tables_dict, password):
         tables_dict["ChatsBlacklist"],
         tables_dict["MessagesTable"]
     )
-    blacklist_ids = chats_blacklist.get_all_ids()
+    blacklist_ids = chats_blacklist.get_all_ids(userid)
     # Use a persistent web_monitor instance in session state, but ensure it matches the current user
     if (
         "web_monitor" not in st.session_state
@@ -182,10 +182,10 @@ def user_app(userid, tables_dict, password):
                 not_donated_result = asyncio.run(web_monitor.get_joined_chats(group=False))
                 not_donated_chats = donated_result.get("invited_chats", [])
                 donated_chats = not_donated_result.get("joined_chats", [])
-                if donated_chats:
-                    chats.update_all_chats(donated_chats)
-                if not_donated_chats:
-                    chats.update_all_chats(not_donated_chats)
+                all_chats = donated_chats + not_donated_chats
+                all_chats = [chat for chat in all_chats if chat not in blacklist_ids]  # Exclude blacklisted chats
+                if all_chats:
+                    chats.update_all_chats(all_chats, userid=userid)
                 st.rerun()
 
         with col2:
@@ -213,18 +213,14 @@ def user_app(userid, tables_dict, password):
                     if row["Blacklist"]:
                         # Remove chat from project and delete it
                         # chats_projects.remove_chat_project(chat_id=chat_id)
-                        chats.delete_chat(chat_id)
-                        st.toast(f"Deleted chat: {row['Chat Name']}", icon="✅")
-                        result = asyncio.run(web_monitor.disable_room(chat_id))
-                        chats_blacklist.add_chat(chat_id)  # add to chats blacklist
-                        if result.get("status") == "success":
-                            st.toast(f"Disabled Chat: {row['Chat Name']}", icon="✅")
-                        else:
-                            st.toast(f"Failed to disable chat: {row['Chat Name']}", icon="❌")
+                        chats.delete_chat(chat_id, userid)
+                        # result = asyncio.run(web_monitor.disable_room(chat_id))
+                        chats_blacklist.add_chat(chat_id, userid)  # add to chats blacklist
+                        st.toast(f"Blacklisted Chat: {row['Chat Name']}", icon="✅")
                         continue
                     original_row = chats_df.loc[chats_df["ChatID"] == chat_id].iloc[0]
                     if row["Donated"] != original_row["Donated"]:
-                        chats.change_active_status_for_chat(chat_id=chat_id)
+                        chats.change_active_status_for_chat(chat_id=chat_id, userid=userid)
                         result = asyncio.run(web_monitor.approve_room(chat_id))
                         if result.get("status") == "success":
                             if row["Donated"]: 

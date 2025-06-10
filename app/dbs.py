@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, String, Boolean, Date, MetaData, select, insert, update, ForeignKey, delete
+from sqlalchemy import Table, Column, String, Boolean, Date, select, insert, update, delete,ForeignKeyConstraint
 import pandas as pd
 from datetime import datetime
 import connectors
@@ -35,20 +35,22 @@ users_table = Table(
 #         )
 
 chats_table = Table(
-            'chats', metadata,
-            Column('chatid', String, primary_key=True),
-            Column('chatname', String),
-            Column('platform', String),
-            Column('userid', String),
-            Column('createdat', Date),
-            Column('updatedat', Date),
-            Column('active', Boolean, default=False)  # Assuming 'active' is a boolean for donation status
-        )
+    'chats', metadata,
+    Column('chatid', String, primary_key=True),
+    Column('chatname', String, nullable=False),
+    Column('platform', String, nullable=False),
+    Column('userid', String, primary_key=True),  # Add as part of composite PK
+    Column('createdat', Date),
+    Column('updatedat', Date),
+    Column('active', Boolean, default=False),
+    ForeignKeyConstraint(['userid'], ['users.userid'])
+)
 
 
 chats_blacklist_table = Table(
     'chats_blacklist', metadata,
-    Column('chatid', String, primary_key=True)
+    Column('chatid', String, primary_key=True),
+    Column('userid', String, primary_key=True)
 )
 
 class UsersTable:
@@ -234,66 +236,6 @@ class UsersTable:
             session.rollback()
             print(f"Error in delete_user: {e}")
 
-# class ProjectsTable:
-#     def __init__(self):
-#         self.projects_table = projects_table
-
-#     def add_project(self, project_id, desc, researchers=None, active=True):
-#         """
-#         Add a new project to the database.
-#         """
-#         try:
-#             stmt = insert(self.projects_table).values(
-#                 projectid=project_id,
-#                 projectname=desc,
-#                 active=active,
-#                 createdat=datetime.now()
-#             )
-#             session.execute(stmt)
-#             session.commit()
-#             # Add researchers to user_projects association table
-#             if researchers:
-#                 for researcher_id in researchers:
-#                     self.add_researcher(project_id, researcher_id)
-#         except Exception as e:
-#             session.rollback()
-#             print(f"Error in add_project: {e}")
-
-
-#     def add_user(self, project_id, user_id):
-#         """
-#         Add a user to a project. Updates the project's user list.
-#         """
-#         try:
-#             project = self.get_project_by_id(project_id)
-#             if project:
-#                 users = project.get('users', '').split(',') if project.get('users') else []
-#                 if user_id not in users:
-#                     users.append(user_id)
-#                     stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
-#                     session.execute(stmt)
-#                     session.commit()
-#         except Exception as e:
-#             session.rollback()
-#             print(f"Error in add_user to project: {e}")
-
-#     def remove_user(self, project_id, user_id):
-#         """
-#         Remove a user from a project. Updates the project's user list.
-#         """
-#         try:
-#             project = self.get_project_by_id(project_id)
-#             if project:
-#                 users = project.get('users', '').split(',') if project.get('users') else []
-#                 if user_id in users:
-#                     users.remove(user_id)
-#                     stmt = update(self.projects_table).where(self.projects_table.c.projectid == project_id).values(users=','.join(users))
-#                     session.execute(stmt)
-#                     session.commit()
-#         except Exception as e:
-#             session.rollback()
-#             print(f"Error in remove_user from project: {e}")
-
 
 class ChatsTable:
     """
@@ -324,48 +266,52 @@ class ChatsTable:
             session.rollback()
             print(f"Error in add_chat: {e}")
 
-    def update_chat_name(self, chat_id, chat_name):
+    def update_chat_name(self, chat_id, user_id, chat_name):
         """
-        Update the name of a chat by chat_id.
+        Update the name of a chat by chat_id and user_id.
         """
         try:
             if not chat_name:
                 chat_name = "Unknown Chat"
-            stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(chatname=chat_name, updatedat=datetime.now())
+            stmt = update(self.chats_table).where(
+                (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
+            ).values(chatname=chat_name, updatedat=datetime.now())
             session.execute(stmt)
             session.commit()
         except Exception as e:
             session.rollback()
             print(f"Error in update_chat_name: {e}")
 
-    def update_chat_donation(self, chat_id):
+    def update_chat_donation(self, chat_id, user_id):
         """
         Update the donation (active) status of a chat.
         """
         try:
-            stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(updatedat=datetime.now())
+            stmt = update(self.chats_table).where(
+                (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
+            ).values(updatedat=datetime.now())
             session.execute(stmt)
             session.commit()
         except Exception as e:
             session.rollback()
             print(f"Error in update_chat_donation: {e}")
 
-    def update_all_chats(self, chats_dict):
+    def update_all_chats(self, chats_dict, userid):
         """
         Update all chats in the provided list/dict. Adds new chats if not present, updates names if changed.
         """
         for chat in chats_dict:
             chat_id = chat.get("ChatID")
             chat_name = chat.get("Chat Name")
-            chat_in_db = self.get_chat_by_id(chat_id)
+            # user_id = chat.get("UserID")
+            chat_in_db = self.get_chat_by_id(chat_id, userid)
             if chat_in_db: # check if needed to update chat name
                 if chat_in_db['Chat Name'] != chat_name:
-                    self.update_chat_name(chat_id, chat_name)
+                    self.update_chat_name(chat_id, userid, chat_name)
             else: # if chat not in db, add it
                 platform = chat.get("Platform")
-                user_id = chat.get("UserID")
-                self.add_chat(chat_id, chat_name, platform, user_id)
-                # self.update_chat_donation(chat_id)
+                self.add_chat(chat_id, chat_name, platform, userid)
+                # self.update_chat_donation(chat_id, user_id)
 
     def get_df(self):
         """
@@ -387,11 +333,15 @@ class ChatsTable:
         df = df.rename(columns=columns_renaming)
         return df
 
-    def get_chat_by_id(self, chat_id):
+    def get_chat_by_id(self, chat_id, user_id):
         """
-        Fetch a single chat by its chat_id.
+        Fetch a single chat by its chat_id and user_id.
         """
-        result = session.execute(select(self.chats_table).where(self.chats_table.c.chatid == chat_id)).fetchone()
+        result = session.execute(
+            select(self.chats_table).where(
+                (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
+            )
+        ).fetchone()
         if result:
             d = dict(result._mapping)
             return {
@@ -422,19 +372,23 @@ class ChatsTable:
         chats_df = chats_df.rename(columns=columns_renaming)
         return chats_df
     
-    def change_active_status_for_chat(self, chat_id):
+    def change_active_status_for_chat(self, chat_id, user_id):
         """
         Change the active status for a chat.
         """
         try:
             # Fetch current status
             result = session.execute(
-                select(self.chats_table.c.active).where(self.chats_table.c.chatid == chat_id)
+                select(self.chats_table.c.active).where(
+                    (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
+                )
             ).fetchone()
             if result:
                 current_status = result[0]
                 new_status = not current_status  # Toggle status
-                stmt = update(self.chats_table).where(self.chats_table.c.chatid == chat_id).values(
+                stmt = update(self.chats_table).where(
+                    (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
+                ).values(
                     active=new_status,
                     updatedat=datetime.now()
                 )
@@ -447,12 +401,14 @@ class ChatsTable:
             print(f"Error in change_active_status_for_chat: {e}")
             return None
 
-    def delete_chat(self, chat_id):
+    def delete_chat(self, chat_id, user_id):
         """
-        Delete a chat from the database by chat_id.
+        Delete a chat from the database by chat_id and user_id.
         """
         try:
-            stmt = delete(self.chats_table).where(self.chats_table.c.chatid == chat_id)
+            stmt = delete(self.chats_table).where(
+                (self.chats_table.c.chatid == chat_id) & (self.chats_table.c.userid == user_id)
+            )
             session.execute(stmt)
             session.commit()
         except Exception as e:
@@ -495,24 +451,27 @@ class ChatsBlacklistTable:
     def __init__(self):
         self.chats_blacklist_table = chats_blacklist_table
 
-    def get_all_ids(self):
+    def get_all_ids(self, userid):
         """
-        Fetch all chat IDs in the blacklist.
+        Fetch all chat IDs in the blacklist for a specific user.
         """
         try:
-            result = session.execute(select(self.chats_blacklist_table.c.chatid)).fetchall()
+            result = session.execute(
+                select(self.chats_blacklist_table.c.chatid)
+                .where(self.chats_blacklist_table.c.userid == userid)
+            ).fetchall()
             return [row[0] for row in result] if result else []
         except Exception as e:
             session.rollback()
             print(f"Error in get_all_ids: {e}")
             return []
 
-    def add_chat(self, chat_id):
+    def add_chat(self, chat_id, userid):
         """
-        Add a chat to the blacklist.
+        Add a chat to the blacklist for a specific user.
         """
         try:
-            stmt = insert(self.chats_blacklist_table).values(chatid=chat_id)
+            stmt = insert(self.chats_blacklist_table).values(chatid=chat_id, userid=userid)
             session.execute(stmt)
             session.commit()
         except Exception as e:
