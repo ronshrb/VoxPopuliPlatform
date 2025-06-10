@@ -362,8 +362,12 @@ def user_app(userid, tables_dict, password):
                             )
                             
                             # chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
-                            users.delete_user(userid)
-
+                            result = asyncio.run( web_monitor.delete_user(userid))
+                            if result.get('status') == 'success':
+                                users.users.delete_user(userid)
+                                st.success('User was deleted successfully!')
+                            else:
+                                st.error(f"Failed to delete user: {result.get('message', 'Unknown error')}")
                             st.success('Your account has been deleted. Logging out...')
                             st.session_state["logged_in"] = False
                             st.session_state["role"] = None

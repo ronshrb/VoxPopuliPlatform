@@ -178,3 +178,16 @@ class WebMonitor:
                 return {"status": "error", "message": "Failed to send message to Telegram bot."}
         except Exception as e:
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
+    async def delete_user(self):
+        """
+        Wrapper to delete a user from the Matrix server using the Synapse Admin API.
+        """
+        try:
+            result = await self.monitor.delete_user()
+            if result:
+                return {"status": "success", "message": "User deleted successfully."}
+            else:
+                return {"status": "error", "message": "Failed to delete user."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}

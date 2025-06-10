@@ -9,7 +9,10 @@ import asyncio
 import requests
 import os
 import re
-
+from wordcloud import WordCloud, STOPWORDS
+import matplotlib.pyplot as plt
+import matplotlib
+import colorsys
 
 server = os.getenv("SERVER")
 
@@ -58,7 +61,7 @@ def researcher_app(userid, tables_dict):
 
 
     # Page title
-    st.title("Researcher Dashboard")
+    st.sidebar.title("Researcher Dashboard")
 
     st.sidebar.success(f"Welcome, {userid}!")
 
@@ -67,13 +70,39 @@ def researcher_app(userid, tables_dict):
     messages_df = messages.get_df(user_ids=all_users_ids)
     chats_summary = messages.get_chats_summary(messages_df, chats.get_df())
 
+    with st.sidebar:
+        # --- Download options for messages_df ---
+        with st.expander("Download all messages"):
+            st.download_button(
+                label="Download as CSV",
+                data=messages_df.to_csv(index=False).encode('utf-8'),
+                file_name="messages.csv",
+                mime="text/csv"
+            )
+            
+            st.download_button(
+                label="Download as JSON",
+                data=messages_df.to_json(orient="records", force_ascii=False, date_format="iso"),
+                file_name="messages.json",
+                mime="application/json"
+            )
+            import io
+            parquet_buffer = io.BytesIO()
+            messages_df.to_parquet(parquet_buffer, index=False)
+            st.download_button(
+                label="Download as Parquet",
+                data=parquet_buffer.getvalue(),
+                file_name="messages.parquet",
+                mime="application/octet-stream"
+            )
 
     # Sidebar menu
     menu = st.sidebar.selectbox(
         "Dashboard Menu",
         ["Chats Overview", "Chats Analysis", "User Management"]
     )
-
+    
+        
     # Project Analytics Page (Blank)
     if menu == "Chats Overview":
         st.header("Chats Overview")
@@ -84,8 +113,93 @@ def researcher_app(userid, tables_dict):
     elif menu == "Chats Analysis":
         st.header("Chats Analysis")
         st.markdown("Analyze chats for the selected project.")
-        # st.radio("Pick a chat to analyze:", options=messages_df['Chat ID'].tolist(), key="chat_select")
-        st.dataframe(messages_df, use_container_width=True, hide_index=True)
+
+        # Get chat names and ids dictionary using the updated function signature
+        chats_df = chats.get_df()
+        chat_name_to_id = messages.get_chats_ids_and_names(chats_df)
+        if chat_name_to_id:
+            available_chats = [chat_name for chat_name, chat_id in chat_name_to_id.items() if chat_id in messages_df['ChatID'].unique()]
+            # Change the chat selection widget from a radio button to a dropdown (selectbox)
+            selected_chat_name = st.selectbox("Pick a chat to analyze:", options=available_chats, key="chat_select")
+            selected_chat_id = chat_name_to_id[selected_chat_name]
+        else:
+            st.warning("No chats available to select.")
+            return  # Exit early if no chats
+
+        chat_to_display = messages_df[messages_df['ChatID'] == selected_chat_id]
+        chat_to_display = chat_to_display[['Sender', 'Content', 'Timestamp']].copy()
+        col1, col2 = st.columns([0.2, 0.6])
+        with col1:
+            # --- Metrics ---
+            st.subheader("Chat Metrics")
+            num_users = chat_to_display['Sender'].nunique()
+            num_messages = len(chat_to_display)
+            st.metric("Number of Active Users", num_users)
+            st.metric("Number of Messages", num_messages)
+        with col2:
+            # --- Word Cloud ---
+            st.subheader("Word Cloud")
+            # Specify a font that supports Hebrew (update the path as needed)
+            font_path = r"app\utils\ARIAL.TTF"
+            # font_path = "app\ARIAL.TTF"
+            def fix_hebrew(text):
+                # Reverse each Hebrew word
+                def reverse_hebrew_word(match):
+                    return match.group(0)[::-1]
+                # Hebrew unicode range: \u0590-\u05FF
+                return re.sub(r'[\u0590-\u05FF]+', reverse_hebrew_word, text)
+            text = " ".join(chat_to_display['Content'].dropna().astype(str))
+            text = fix_hebrew(text)
+            stopwords = set(STOPWORDS)
+            # Add Hebrew stopwords
+            hebrew_stopwords = {'הפ', 'רתוי', 'הלוכי', 'וליאו', 'לא', 'ןאכ', 'לצא', 'אוה', 'לע', 'ותיא', 'המצע', 'םכתא', 'ןכ', 'ולא', 'םתא', 'ול', 'יתיה', 'היהי', 'ןהל', 'התוא', 'הביס וזיאמ', 'ליבשב', 'ילבמ', 'םמצע', 'ילע', 'ןיב', 'תועצמאב', 'ןכתיא', 'ןהמצע', 'ןאל', 'ןיא', 'תולוכי', 'ןתא', 'טעמ', 'ימ', 'ןמ', 'םירחא', 'עודמ', 'ךתיא', 'שכ', 'לש', 'ונחנא', 'ןיבל', 'ירוחאמ', 'רבעל', 'ללגב', 'ןכלש', 'וב םוקמ', 'םע', 'ךא', 'רחא', 'םכתיא', 'םיטעמ', 'ש העשב', 'םכילע', 'הטמל', 'אל', 'זא', 'לוכי', 'הלעמל', 'ימצע', 'יכ', 'סא', 'ולש', 'הפיא', 'היהת', 'ותוא', 'ולכוי', 'לכי', 'איה', 'ואל', 'ןה', 'הז', 'םילוכי', 'ןאכמ', 'קר', 'הלכי', 'םכל', 'הלש', 'לומ', 'ןתיא', 'םהל', 'םא', 'ךכ', 'תורחא', 'ובש םוקמל', 'תא', 'וילע', 'ולכי', 'דצמ', 'זע', 'ןכל', 'תחת', 'ץוחמ', 'ומכ', 'תאז', 'ונמצע', 'ןהלש', 'תחתמ', 'ינפל', 'ןוויכמ', 'ךיא', 'דציכ', 'ונלש', 'עצמאב', 'םש', 'ךותב', 'ןכתא', 'יתמ', 'הדימב', 'רשא', 'ןכיה', 'םכלש', 'םהילע', 'תרחא', 'ךתוא', 'רשאכ', 'לכ', 'ונתיא', 'תאו', 'יפכ', 'ךילע', 'ונל', 'תילכת וזיאל', 'ןתוא', 'םהלש', 'התיא', 'לכוי', 'ףא', 'התיה', 'ידמ', 'דבלמ', 'הללגבש הביסה', 'ומצע', 'ללכ', 'המל', 'ןיאמ', 'יתוא', 'דע', 'יא', 'ונילע', 'ןכיעל', 'ירה', 'יל', 'המ', 'הנה', 'םהמצע', 'הזיא', 'דאמ', 'רגנ', 'םה', 'ינא', 'ירחא', 'הדימ וזיאב', 'הלא', 'ונ', 'וא', 'הזכ', 'הככ', 'בוש', 'ךרד', 'היה', 'דגנ', 'תוז', 'התא', 'הילע', 'לעמ', 'ןמצע', 'םתיא', 'םרב', 'ךכיפל', 'ךלש', 'ןלוכ', 'ןכיהמ', 'ונתוא', 'תורמל', 'דעבמ', 'לבא', 'יתיא', 'םלוכ', 'ןינמ', 'הפיאמ', 'םג', 'ןהילע', 'םתוא', 'לגוסמ', 'הל', 'ובש םוקמב', 'ילוא', 'שי', 'תויהל', 'ילש', 'ילב'}     
+            stopwords.update(hebrew_stopwords)
+            anonymization_labels = {'NAME', 'SPECIAL', 'DATE', 'ADDRESS'}
+            stopwords.update(anonymization_labels)
+            wordcloud = WordCloud(
+                width=800,
+                height=400,
+                background_color='white',
+                stopwords=stopwords,
+                font_path=font_path
+            ).generate(text)
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.imshow(wordcloud, interpolation='bilinear')
+            ax.axis("off")
+            st.pyplot(fig)
+
+        col1, col2 = st.columns([0.5, 0.5])
+        with col1:
+            # --- Activity by Day ---
+            st.subheader("Activity by Day")
+            chat_to_display['Date'] = pd.to_datetime(chat_to_display['Timestamp']).dt.date
+            messages_per_day = chat_to_display.groupby('Date').size()
+            st.line_chart(messages_per_day, use_container_width=True)
+        with col2:
+            # --- Average Activity by Hour ---
+            st.subheader("Average Activity by Hour")
+            chat_to_display['Hour'] = pd.to_datetime(chat_to_display['Timestamp']).dt.hour
+            messages_per_hour = chat_to_display.groupby('Hour').size()
+            avg_messages_per_hour = messages_per_hour / chat_to_display['Date'].nunique()
+            avg_messages_per_hour = avg_messages_per_hour.reindex(range(24), fill_value=0)
+            st.bar_chart(avg_messages_per_hour, use_container_width=True)
+
+        # --- Messages ---
+        # Assign a unique light color to each sender
+        chat_to_display_final = chat_to_display[['Sender', 'Content', 'Timestamp']].copy()
+        unique_senders = chat_to_display_final['Sender'].unique()
+        # Generate light pastel colors using HSV
+        def pastel_color(i, total):
+            hue = i / total
+            lightness = 0.85
+            saturation = 0.5
+            rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
+            return f'background-color: {matplotlib.colors.rgb2hex(rgb)}'
+        sender_to_color = {sender: pastel_color(i, len(unique_senders)) for i, sender in enumerate(unique_senders)}
+        def color_rows(row):
+            return [sender_to_color[row['Sender']]] * len(row)
+        styled_df = chat_to_display_final.style.apply(color_rows, axis=1)
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
     # User Management Page
     elif menu == "User Management":
@@ -235,4 +349,4 @@ def researcher_app(userid, tables_dict):
                                         st.success(f"Researcher {username} registered successfully!")
                                 except Exception as e:
                                     st.error(f"Registration error: {str(e)}")
-           
+

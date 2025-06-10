@@ -777,6 +777,40 @@ class MultiPlatformMessageMonitor:
             except Exception as e:
                 print(f"Error while getting room name for {room_id}: {str(e)}")
                 return None
+    
+    async def delete_user(self):
+        """
+        Delete a user from the Matrix server using the Synapse Admin API.
+        Requires admin access token. If username is None, deletes self.username.
+        """
+        if not ADMIN_ACCESS_TOKEN:
+            print("Admin access token not set. Cannot delete user.")
+            return False
+        user = self.username
+        # Remove port if present in domain
+        domain = self.synapse_url.split('//')[1].split(':')[0]
+        user_id = f"@{user}:{domain}"
+        delete_media_url = f"{self.synapse_url}/_synapse/admin/v1/users/{user_id}/media"
+        deactivate_user_url = f"{self.synapse_url}/_synapse/admin/v1/deactivate/{user_id}"
+        headers = {"Authorization": f"Bearer {ADMIN_ACCESS_TOKEN}"}
+        body = {"erase" : True}
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            try:
+                response = await client.put(deactivate_user_url, headers=headers, json=body)
+                if response.status_code in [200, 204]:
+                    print(f"Successfully deleted user: {user_id}")
+                    response = await client.delete(delete_media_url, headers=headers)
+                    if response.status_code in [200, 204]:
+                        print(f"Successfully deleted user's media: {user_id}")
+                    else:
+                        print(f"Failed to delete user's media {user_id}: {response.status_code} - {response.text}")
+                    return True  # return true even if media was not deleted
+                else:
+                    print(f"Failed to delete user {user_id}: {response.status_code} - {response.text}")
+                    return False
+            except Exception as e:
+                print(f"Error while deleting user {user_id}: {str(e)}")
+                return False
 
 # async def main():
 #     parser = argparse.ArgumentParser(

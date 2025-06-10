@@ -514,7 +514,31 @@ class MessagesTable:
                 df = pd.concat([df, self.blob_to_dataframe(path)], ignore_index=True)
             else:
                 df = self.blob_to_dataframe(path)
+        renaming_dict = {
+            'id': 'MessageID',
+            'room_id': 'ChatID',
+            'username': 'UserID',
+            'anonymized_sender': 'Sender',
+            'anonymized_content': 'Content',
+            'timestamp': 'Timestamp',
+            }
+        df = df[list(renaming_dict.keys())]
+        df = df.rename(columns=renaming_dict)
         return df
+    
+    def get_chats_ids_and_names(self, df, user_ids=None):
+        """
+        Get a dictionary of chat names as keys and chat IDs as values for the specified user IDs.
+        If user_ids is None, return all chats.
+        """
+        chat_dict = {}
+        for _, row in df.iterrows():
+            chat_name = row['Chat Name']
+            chat_id = row['ChatID']
+            user_id = row['UserID']
+            if chat_name not in chat_dict:
+                chat_dict[f'{chat_name} by {user_id}'] = chat_id
+        return chat_dict
     
     def get_chats_summary(self, df, chats_df):
         """
@@ -523,7 +547,7 @@ class MessagesTable:
         if df.empty:
             return pd.DataFrame(columns=['Chat ID', 'User ID', 'Total Messages'])
         else:
-            summary = df.groupby(['room_id', 'username']).size().reset_index(name='Total Messages')
+            summary = df.groupby(['ChatID', 'UserID']).size().reset_index(name='Total Messages')
             summary.columns = ['Chat ID', 'User', 'Total Messages']
             summary['Chat ID'] = summary['Chat ID'].astype(str)
             summary['User'] = summary['User'].astype(str)
