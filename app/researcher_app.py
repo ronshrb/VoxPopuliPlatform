@@ -140,7 +140,7 @@ def researcher_app(userid, tables_dict):
             # --- Word Cloud ---
             st.subheader("Word Cloud")
             # Specify a font that supports Hebrew (update the path as needed)
-            font_path = r"app\utils\ARIAL.TTF"
+            font_path = r"/app/utils/ARIAL.TTF"
             # font_path = "app\ARIAL.TTF"
             def fix_hebrew(text):
                 # Reverse each Hebrew word
@@ -156,13 +156,18 @@ def researcher_app(userid, tables_dict):
             stopwords.update(hebrew_stopwords)
             anonymization_labels = {'NAME', 'SPECIAL', 'DATE', 'ADDRESS'}
             stopwords.update(anonymization_labels)
-            wordcloud = WordCloud(
-                width=800,
-                height=400,
-                background_color='white',
-                stopwords=stopwords,
-                font_path=font_path
-            ).generate(text)
+            try:
+                wordcloud = WordCloud(
+                    width=800,
+                    height=400,
+                    background_color='white',
+                    stopwords=stopwords,
+                    font_path=font_path
+                ).generate(text)
+            except OSError:
+                print(os.listdir("/"))
+                print(os.listdir("/app"))
+                print(os.listdir("/app/utils"))
             fig, ax = plt.subplots(figsize=(10, 5))
             ax.imshow(wordcloud, interpolation='bilinear')
             ax.axis("off")

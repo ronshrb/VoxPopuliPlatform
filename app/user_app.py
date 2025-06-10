@@ -364,7 +364,7 @@ def user_app(userid, tables_dict, password):
                             # chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
                             result = asyncio.run(web_monitor.delete_user())
                             if result.get('status') == 'success':
-                                users.users.delete_user(userid)
+                                users.delete_user(userid)
                                 st.success('User was deleted successfully!')
                             else:
                                 st.error(f"Failed to delete user: {result.get('message', 'Unknown error')}")
