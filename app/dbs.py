@@ -132,6 +132,7 @@ class UsersTable:
                     'Creator': d.get('creator'),
                     'Active': d.get('active'),
                     'CreatedAt': d.get('createdat'),
+                    'Deleted': d.get('deleted'),
                 }
             return None
         except Exception as e:

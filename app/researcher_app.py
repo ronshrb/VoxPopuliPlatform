@@ -421,6 +421,8 @@ def researcher_app(userid, tables_dict):
                             st.error("Please fill in all fields.")
                         elif password != confirm_password:
                             st.error("Passwords do not match.")
+                        elif username in users.get_users()['UserID'].tolist():
+                            st.error("Username already exists. Please choose a different username.")
                         elif not re.match(allowed_pattern, username):
                             st.error("Username can only contain: a-z, 0-9, = _ - . / +")
                         else:
