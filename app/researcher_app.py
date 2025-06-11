@@ -370,6 +370,7 @@ def researcher_app(userid, tables_dict):
                                     }
                                 )
                                 # delete user from the database
+                                chats.disable_all_rooms_for_user(userid)
                                 users.delete_user(curr_user_id)
                                 st.success(f"User {curr_user_id} deleted successfully.")
                                 any_change = True
