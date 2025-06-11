@@ -13,6 +13,8 @@ RUN pip install -r requirements.txt
 ADD https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 /cloud_sql_proxy
 RUN chmod +x /cloud_sql_proxy
 
+COPY [ARIAL.TTF](http://_vscodecontentref_/2) [ARIAL.TTF](http://_vscodecontentref_/3)
+
 # Add and set permissions for the startup script
 COPY startup.sh /startup.sh
 RUN chmod +x /startup.sh
