@@ -82,7 +82,7 @@ class UsersTable:
             self.users_table.c.active,
             self.users_table.c.createdat,
             self.users_table.c.lastupdate
-        )).fetchall()
+        ).where(self.users_table.c.deleted==False)).fetchall()
         columns = ['UserID', 'Role', 'Creator', 'Active', 'CreatedAt', 'UpdatedAt']
         if result:
             df = pd.DataFrame(result, columns=columns)
