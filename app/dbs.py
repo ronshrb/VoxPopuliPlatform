@@ -22,17 +22,10 @@ users_table = Table(
             Column('creator', String),
             Column('active', Boolean),
             Column('createdat', Date),
-            Column('lastupdate', Date)
+            Column('lastupdate', Date),
+            Column('deleted', Boolean, default=False)
         )
 
-# projects_table = Table(
-#             'projects', metadata,
-#             Column('projectid', String, primary_key=True),
-#             Column('projectname', String),
-#             Column('active', Boolean),
-#             Column('createdat', Date),
-#             Column('lastupdate', Date)
-#         )
 
 chats_table = Table(
     'chats', metadata,
@@ -225,11 +218,13 @@ class UsersTable:
         
     def delete_user(self, user_id):
         """
-        Delete a user from the database by user_id.
+        Soft-delete a user by setting the 'deleted' column to True.
         """
         try:
-            # delete from users table
-            stmt = delete(self.users_table).where(self.users_table.c.userid == user_id)
+            stmt = update(self.users_table).where(self.users_table.c.userid == user_id).values(
+                deleted=True,
+                lastupdate=datetime.now()
+            )
             session.execute(stmt)
             session.commit()
         except Exception as e:
