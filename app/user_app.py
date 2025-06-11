@@ -24,6 +24,7 @@ def user_app(userid, tables_dict, password):
         tables_dict["MessagesTable"]
     )
     blacklist_ids = chats_blacklist.get_all_ids(userid)
+    
     # Use a persistent web_monitor instance in session state, but ensure it matches the current user
     if (
         "web_monitor" not in st.session_state
@@ -183,7 +184,7 @@ def user_app(userid, tables_dict, password):
                 not_donated_chats = donated_result.get("invited_chats", [])
                 donated_chats = not_donated_result.get("joined_chats", [])
                 all_chats = donated_chats + not_donated_chats
-                all_chats = [chat for chat in all_chats if chat not in blacklist_ids]  # Exclude blacklisted chats
+                all_chats = [chat for chat in all_chats if chat["ChatID"] not in blacklist_ids] # Exclude blacklisted chats
                 if all_chats:
                     chats.update_all_chats(all_chats, userid=userid)
                 st.rerun()
@@ -311,24 +312,6 @@ def user_app(userid, tables_dict, password):
                             else:
                                 st.error(f"Failed to change password: {result.get('message', 'Unknown error')}")
 
-        # with col2:
-            # with st.form('Leave Project'):
-            #     st.subheader('Leave Project')
-            #     if available_projects:
-            #         project_ids = [pid for pid in available_projects if pid in projects_info]
-            #         project_names = [projects_info[pid]['ProjectName'] for pid in project_ids]
-            #         selected_project = st.selectbox('Select Project to Leave', project_names, key='leave_project_select')
-            #     else:
-            #         st.info('You are not part of any projects.')
-            #         selected_project = None
-
-            #     submitted = st.form_submit_button('Leave Project')
-            #     if submitted and selected_project:
-            #         project_id = next(pid for pid, name in zip(project_ids, project_names) if name == selected_project)
-            #         with st.spinner(f'Leaving project {selected_project}...'):
-            #             user_projects.remove_user_project(userid, project_id)
-            #             st.success(f'You have left the project: {selected_project}')
-            #             st.rerun()
         with col2:
             with st.form('Disable All Chats'):
                 st.subheader('Disable All Chats')

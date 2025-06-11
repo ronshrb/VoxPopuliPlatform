@@ -473,11 +473,13 @@ class ChatsBlacklistTable:
         """
         Add a chat to the blacklist for a specific user.
         """
+        print(chat_id, userid)
         try:
             stmt = insert(self.chats_blacklist_table).values(chatid=chat_id, userid=userid)
             session.execute(stmt)
             session.commit()
         except Exception as e:
+            print(e)
             session.rollback()
             if 'duplicate key' not in str(e):
                 print(f"Error in add_id: {e}")
