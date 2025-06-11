@@ -375,7 +375,7 @@ def researcher_app(userid, tables_dict):
                                 any_change = True
                             except Exception as e:
                                 st.error(f"Failed to delete user {curr_user_id}: {str(e)}")
-                        if row['Active'] != users.get_user_by_id(curr_user_id)['Active']: # if the active status has changed
+                        elif row['Active'] != users.get_user_by_id(curr_user_id)['Active']: # if the active status has changed
                             try:
                                 users.change_active_status_for_user(curr_user_id)
                                 any_change = True
