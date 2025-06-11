@@ -161,7 +161,7 @@ def researcher_app(userid, tables_dict):
                 height=400,
                 background_color='white',
                 stopwords=stopwords,
-                font_path=font_path
+                font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
             ).generate(text)
             # except OSError:
             #     print(os.listdir("/"))
