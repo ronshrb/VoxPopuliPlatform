@@ -498,12 +498,13 @@ class MessagesTable:
         # Remove the sentence from anonymized_content, but keep the rest of the message
         
         if 'anonymized_content' in df.columns:
-            # df = df[~df['anonymized_content'].str.contains("⚠️ Your message was not bridged: You're not logged in", na=False)]
+
             df['anonymized_content'] = df['anonymized_content'].str.replace(
-                "⚠️ Your message was not bridged: You're not logged in", '', regex=False
-            ).str.strip()
-            df['anonymized_content'] = df['anonymized_content'].str.replace(
-                'Failed to bridge photo, please view it on the WhatsApp app', '', regex=False
+                r"(⚠️ Your message was not bridged: You're not logged in|" \
+                "Failed to bridge photo, please view it on the WhatsApp app|" \
+                "↷ Forwarded|" \
+                "\[ANONYMIZATION_ERROR\] ↷ Forwarded)",
+                '', regex=True
             ).str.strip()
             df = df[df['anonymized_content'] != '']
             df.dropna(subset=['anonymized_content'], inplace=True)

@@ -166,22 +166,21 @@ def researcher_app(userid, tables_dict):
     elif menu == "Chats Analysis":
         st.header("Chats Analysis")
         st.markdown("Analyze chats for the selected project.")
+        # Get chat names and ids dictionary using the updated function signature
+        chats_df = chats.get_df()
+        chat_name_to_id = messages.get_chats_ids_and_names(chats_df)
+        col1, col2 = st.columns([0.5, 0.5])
+        with col1:
+            if chat_name_to_id:
+                available_chats = [chat_name for chat_name, chat_id in chat_name_to_id.items() if chat_id in messages_df['ChatID'].unique()]
+                # Change the chat selection widget from a radio button to a dropdown (selectbox)
+                selected_chat_name = st.selectbox("Pick a chat to analyze:", options=available_chats, key="chat_select")
+                selected_chat_id = chat_name_to_id[selected_chat_name]
+            else:
+                st.warning("No chats available to select.")
+                return  # Exit early if no chats
         tab1, tab2 = st.tabs(["Chat Analytics", "Chat Messages"])
         with tab1:
-            # Get chat names and ids dictionary using the updated function signature
-            chats_df = chats.get_df()
-            chat_name_to_id = messages.get_chats_ids_and_names(chats_df)
-            col1, col2 = st.columns([0.5, 0.5])
-            with col1:
-                if chat_name_to_id:
-                    available_chats = [chat_name for chat_name, chat_id in chat_name_to_id.items() if chat_id in messages_df['ChatID'].unique()]
-                    # Change the chat selection widget from a radio button to a dropdown (selectbox)
-                    selected_chat_name = st.selectbox("Pick a chat to analyze:", options=available_chats, key="chat_select")
-                    selected_chat_id = chat_name_to_id[selected_chat_name]
-                else:
-                    st.warning("No chats available to select.")
-                    return  # Exit early if no chats
-
             chat_to_display = messages_df[messages_df['ChatID'] == selected_chat_id]
             chat_to_display = chat_to_display[['Sender', 'Content', 'Timestamp']].copy()
             col1, col2 = st.columns([0.2, 0.6])
