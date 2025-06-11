@@ -490,10 +490,23 @@ class MessagesTable:
     def blob_to_dataframe(self, blob_name):
         """
         Download a NDJSON file from GCP bucket and load it into a pandas DataFrame.
+        Remove the sentence 'Failed to bridge photo, please view it on the WhatsApp app' from messages.
         """
         blob = self.bucket.blob(blob_name)
         data = blob.download_as_bytes()
         df = pd.read_json(StringIO(data.decode('utf-8')), lines=True)
+        # Remove the sentence from anonymized_content, but keep the rest of the message
+        
+        if 'anonymized_content' in df.columns:
+            # df = df[~df['anonymized_content'].str.contains("⚠️ Your message was not bridged: You're not logged in", na=False)]
+            df['anonymized_content'] = df['anonymized_content'].str.replace(
+                "⚠️ Your message was not bridged: You're not logged in", '', regex=False
+            ).str.strip()
+            df['anonymized_content'] = df['anonymized_content'].str.replace(
+                'Failed to bridge photo, please view it on the WhatsApp app', '', regex=False
+            ).str.strip()
+            df = df[df['anonymized_content'] != '']
+            df.dropna(subset=['anonymized_content'], inplace=True)
         return df
     
     def get_df(self, user_ids=None, chat_ids=None):
