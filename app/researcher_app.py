@@ -266,10 +266,16 @@ def researcher_app(userid, tables_dict):
                     messages_per_hour = chat_to_display.groupby('Hour').size()
                     avg_messages_per_hour = messages_per_hour / chat_to_display['Date'].nunique()
                     avg_messages_per_hour = avg_messages_per_hour.reindex(range(24), fill_value=0)
-                    # Pie chart for hour
+                    # Pie chart for hour (no labels, legend instead)
                     fig, ax = plt.subplots()
-                    ax.pie(avg_messages_per_hour, labels=avg_messages_per_hour.index, autopct='%1.1f%%', startangle=90)
+                    wedges, _, autotexts = ax.pie(
+                        avg_messages_per_hour,
+                        labels=None,
+                        autopct='%1.1f%%',
+                        startangle=90
+                    )
                     ax.axis('equal')
+                    ax.legend(wedges, avg_messages_per_hour.index, title="Hour", loc="center left", bbox_to_anchor=(1, 0.5))
                     st.pyplot(fig)
                 elif activity_group == "Part of Day":
                     def get_part_of_day(hour):
@@ -288,10 +294,16 @@ def researcher_app(userid, tables_dict):
                     part_order = ["Night", "Morning", "Afternoon", "Evening"]
                     messages_per_part = messages_per_part.reindex(part_order, fill_value=0)
                     avg_messages_per_part = messages_per_part / chat_to_display['Date'].nunique()
-                    # Pie chart for part of day
+                    # Pie chart for part of day (no labels, legend instead)
                     fig, ax = plt.subplots()
-                    ax.pie(avg_messages_per_part, labels=avg_messages_per_part.index, autopct='%1.1f%%', startangle=90)
+                    wedges, _, autotexts = ax.pie(
+                        avg_messages_per_part,
+                        labels=None,
+                        autopct='%1.1f%%',
+                        startangle=90
+                    )
                     ax.axis('equal')
+                    ax.legend(wedges, avg_messages_per_part.index, title="Part of Day", loc="center left", bbox_to_anchor=(1, 0.5))
                     st.pyplot(fig)
                 elif activity_group == "Day of Week":
                     chat_to_display['DayOfWeek'] = pd.to_datetime(chat_to_display['Timestamp']).dt.day_name()
@@ -299,10 +311,16 @@ def researcher_app(userid, tables_dict):
                     # Ensure order: Monday, Tuesday, ..., Sunday
                     day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
                     messages_per_dayofweek = messages_per_dayofweek.reindex(day_order, fill_value=0)
-                    # Pie chart for day of week
+                    # Pie chart for day of week (no labels, legend instead)
                     fig, ax = plt.subplots()
-                    ax.pie(messages_per_dayofweek, labels=messages_per_dayofweek.index, autopct='%1.1f%%', startangle=90)
+                    wedges, _, autotexts = ax.pie(
+                        messages_per_dayofweek,
+                        labels=None,
+                        autopct='%1.1f%%',
+                        startangle=90
+                    )
                     ax.axis('equal')
+                    ax.legend(wedges, messages_per_dayofweek.index, title="Day of Week", loc="center left", bbox_to_anchor=(1, 0.5))
                     st.pyplot(fig)
         with tab2:
             # --- Messages ---
