@@ -140,7 +140,8 @@ def researcher_app(userid, tables_dict):
             # --- Word Cloud ---
             st.subheader("Word Cloud")
             # Specify a font that supports Hebrew (update the path as needed)
-            font_path = r"app/ARIAL.TTF"
+            font_path = r"app/ARIAL.TTF"\
+            # font_path = r"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
             def fix_hebrew(text):
                 # Reverse each Hebrew word
                 def reverse_hebrew_word(match):
@@ -162,7 +163,7 @@ def researcher_app(userid, tables_dict):
                 height=400,
                 background_color='white',
                 stopwords=stopwords,
-                font_path=r"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+                font_path=font_path
             ).generate(text)
             # except OSError:
             #     print(os.listdir("/"))
@@ -173,21 +174,80 @@ def researcher_app(userid, tables_dict):
             ax.axis("off")
             st.pyplot(fig)
 
+                # --- Activity by Day ---
+        st.subheader("Activity")
+        chat_to_display['Date'] = pd.to_datetime(chat_to_display['Timestamp']).dt.date
+        messages_per_day = chat_to_display.groupby('Date').size()
+        st.line_chart(messages_per_day, use_container_width=True)
         col1, col2 = st.columns([0.5, 0.5])
         with col1:
-            # --- Activity by Day ---
-            st.subheader("Activity by Day")
-            chat_to_display['Date'] = pd.to_datetime(chat_to_display['Timestamp']).dt.date
-            messages_per_day = chat_to_display.groupby('Date').size()
-            st.line_chart(messages_per_day, use_container_width=True)
+            # 2. Message Length Distribution: Histogram of message lengths
+            st.markdown("### Message Length Distribution")
+            msg_lengths = chat_to_display['Content'].dropna().astype(str).apply(len)
+            fig3, ax3 = plt.subplots()
+            ax3.hist(msg_lengths, bins=30, color='skyblue', edgecolor='black')
+            ax3.set_xlabel("Message Length (characters)")
+            ax3.set_ylabel("Frequency")
+            ax3.set_title("Distribution of Message Lengths")
+            st.pyplot(fig3)
+
         with col2:
-            # --- Average Activity by Hour ---
-            st.subheader("Average Activity by Hour")
-            chat_to_display['Hour'] = pd.to_datetime(chat_to_display['Timestamp']).dt.hour
-            messages_per_hour = chat_to_display.groupby('Hour').size()
-            avg_messages_per_hour = messages_per_hour / chat_to_display['Date'].nunique()
-            avg_messages_per_hour = avg_messages_per_hour.reindex(range(24), fill_value=0)
-            st.bar_chart(avg_messages_per_hour, use_container_width=True)
+
+            # --- Activity Chart Selector ---
+            subcol1, subcol2 = st.columns([0.5, 0.5])
+            with subcol1:
+                st.subheader("Chat Activity By")
+            with subcol2:
+                activity_group = st.selectbox(
+                    "Group activity by:",
+                    options=["Hour", "Part of Day", "Day of Week"],
+                    key="activity_group_select",
+                    label_visibility="collapsed"
+                )
+            chat_to_display['Date'] = pd.to_datetime(chat_to_display['Timestamp']).dt.date
+            if activity_group == "Hour":
+                chat_to_display['Hour'] = pd.to_datetime(chat_to_display['Timestamp']).dt.hour
+                messages_per_hour = chat_to_display.groupby('Hour').size()
+                avg_messages_per_hour = messages_per_hour / chat_to_display['Date'].nunique()
+                avg_messages_per_hour = avg_messages_per_hour.reindex(range(24), fill_value=0)
+                # Pie chart for hour
+                fig, ax = plt.subplots()
+                ax.pie(avg_messages_per_hour, labels=avg_messages_per_hour.index, autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
+                st.pyplot(fig)
+            elif activity_group == "Part of Day":
+                def get_part_of_day(hour):
+                    if 5 <= hour < 12:
+                        return "Morning"
+                    elif 12 <= hour < 17:
+                        return "Afternoon"
+                    elif 17 <= hour < 21:
+                        return "Evening"
+                    else:
+                        return "Night"
+                chat_to_display['Hour'] = pd.to_datetime(chat_to_display['Timestamp']).dt.hour
+                chat_to_display['PartOfDay'] = chat_to_display['Hour'].apply(get_part_of_day)
+                messages_per_part = chat_to_display.groupby('PartOfDay').size()
+                # Ensure order
+                part_order = ["Night", "Morning", "Afternoon", "Evening"]
+                messages_per_part = messages_per_part.reindex(part_order, fill_value=0)
+                avg_messages_per_part = messages_per_part / chat_to_display['Date'].nunique()
+                # Pie chart for part of day
+                fig, ax = plt.subplots()
+                ax.pie(avg_messages_per_part, labels=avg_messages_per_part.index, autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
+                st.pyplot(fig)
+            elif activity_group == "Day of Week":
+                chat_to_display['DayOfWeek'] = pd.to_datetime(chat_to_display['Timestamp']).dt.day_name()
+                messages_per_dayofweek = chat_to_display.groupby('DayOfWeek').size()
+                # Ensure order: Monday, Tuesday, ..., Sunday
+                day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                messages_per_dayofweek = messages_per_dayofweek.reindex(day_order, fill_value=0)
+                # Pie chart for day of week
+                fig, ax = plt.subplots()
+                ax.pie(messages_per_dayofweek, labels=messages_per_dayofweek.index, autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
+                st.pyplot(fig)
 
         # --- Messages ---
         # Assign a unique light color to each sender
@@ -205,6 +265,9 @@ def researcher_app(userid, tables_dict):
             return [sender_to_color[row['Sender']]] * len(row)
         styled_df = chat_to_display_final.style.apply(color_rows, axis=1)
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+
+
 
     # User Management Page
     elif menu == "User Management":
