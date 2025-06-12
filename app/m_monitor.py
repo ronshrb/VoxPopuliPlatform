@@ -262,6 +262,74 @@ class MultiPlatformMessageMonitor:
             else:
                 print(f"Failed to send message: {send_resp.status_code} - {send_resp.text}")
                 return False
+            
+    async def get_last_telegram_bot_message(self):
+        """
+        Retrieve the last message sent by the Telegram bot in the direct chat.
+        
+        Returns:
+            str: The body of the last message from the bot, or None if no message found
+        """
+        if not self.access_token:
+            print("Not logged in. Cannot retrieve bot messages.")
+            return None
+
+        bot_mxid = TELEGRAM_BOT_MXID
+
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            # Find existing direct chat with the bot
+            joined_rooms_url = f"{self.synapse_url}/_matrix/client/v3/joined_rooms"
+            response = await client.get(
+                joined_rooms_url,
+                headers={"Authorization": f"Bearer {self.access_token}"}
+            )
+            
+            room_id = None
+            if response.status_code == 200:
+                room_ids = response.json().get("joined_rooms", [])
+                for rid in room_ids:
+                    members_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{rid}/members"
+                    members_resp = await client.get(
+                        members_url,
+                        headers={"Authorization": f"Bearer {self.access_token}"}
+                    )
+                    if members_resp.status_code == 200:
+                        members = [event["state_key"] for event in members_resp.json().get("chunk", []) if event["type"] == "m.room.member"]
+                        if bot_mxid in members and self.user_id in members and len(members) == 2:
+                            print(f"Found direct chat with Telegram bot: {rid}")
+                            room_id = rid
+                            break
+
+            if not room_id:
+                print("No direct chat with Telegram bot found.")
+                return None
+
+            # Get the most recent messages from the room
+            messages_url = f"{self.synapse_url}/_matrix/client/v3/rooms/{room_id}/messages"
+            messages_resp = await client.get(
+                messages_url,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                params={"limit": 20, "dir": "b"}  # Get last 20 messages, backward from most recent
+            )
+            
+            if messages_resp.status_code != 200:
+                print(f"Failed to get messages: {messages_resp.status_code} - {messages_resp.text}")
+                return None
+
+            messages = messages_resp.json().get("chunk", [])
+            
+            # Find the most recent message from the bot
+            for message in messages:
+                if (message.get("sender") == bot_mxid and 
+                    message.get("type") == "m.room.message" and 
+                    message.get("content", {}).get("msgtype") == "m.text"):
+                    
+                    bot_message = message.get("content", {}).get("body")
+                    print(f"Found last message from Telegram bot: {bot_message}")
+                    return bot_message
+                    
+            print("No messages from Telegram bot found in the chat history.")
+            return None
 
     async def generate_qr(self, platform='whatsapp'):
         """
