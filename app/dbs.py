@@ -8,7 +8,6 @@ from io import StringIO
 load_dotenv()
 
 
-# Remove SQLAlchemy/Postgres setup from here, import from connectors instead
 engine = connectors.engine
 Session = connectors.Session
 session = connectors.session
@@ -188,34 +187,6 @@ class UsersTable:
         except Exception as e:
             session.rollback()
             print(f"Error in change_user_password: {e}")
-
-    # def get_whitelisted_rooms(self, userid):
-    #     """
-    #     Return a list of chat IDs (strings) of the user that appear in chat_projects.
-    #     """
-    #     try:
-    #         # Get all chat IDs for this user from chats table
-    #         active_chats = session.execute(
-    #             select(self.chats.c.chatid).where(self.chats.c.active == True & self.chats.c.userid == userid)
-    #         ).fetchall()
-    #         chat_ids = [row[0] for row in active_chats] if active_chats else []
-    #         if not chat_ids:
-    #             return []
-    #         # Get chat IDs that are also in chat_projects
-    #         whitelisted_chats = session.execute(
-    #             select(self.chats.c.chatid)
-    #             .where(
-    #                 self.chats.c.chatid.in_(
-    #                     select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
-    #                 )
-    #             )
-    #         ).fetchall()
-    #         ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
-    #         return ids
-    #     except Exception as e:
-    #         session.rollback()
-    #         print(f"Error in get_whitelisted_rooms: {e}")
-    #         return []
         
     def delete_user(self, user_id):
         """
@@ -500,13 +471,13 @@ class MessagesTable:
         if 'anonymized_content' in df.columns:
 
             df['anonymized_content'] = df['anonymized_content'].str.replace(
-                r"(⚠️ Your message was not bridged: You're not logged in|" \
-                "Failed to bridge photo, please view it on the WhatsApp app|" \
-                "↷ Forwarded|" \
-                "\[ANONYMIZATION_ERROR\] ↷ Forwarded)|" \
-                "Unknown message type, please view it on the WhatsApp app|" \
-                "Sorry, I can only process text. If you can describe the image in text, I will do my best to anonymize it.|" \
-                "Okay, I understand. I will anonymize any message you send me according to the rules you've provided. Send me the message you want me to anonymize.",
+                r"(⚠️ Your message was not bridged: You're not logged in|"
+                r"Failed to bridge photo, please view it on the WhatsApp app|"
+                r"↷ Forwarded|"
+                r"\[ANONYMIZATION_ERROR\] ↷ Forwarded|"
+                r"Unknown message type, please view it on the WhatsApp app|"
+                r"Sorry, I can only process text. If you can describe the image in text, I will do my best to anonymize it.|"
+                r"Okay, I understand. I will anonymize any message you send me according to the rules you've provided. Send me the message you want me to anonymize.)",
                 '', regex=True
             ).str.strip()
             df = df[df['anonymized_content'] != '']

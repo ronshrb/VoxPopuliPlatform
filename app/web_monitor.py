@@ -191,3 +191,32 @@ class WebMonitor:
                 return {"status": "error", "message": "Failed to delete user."}
         except Exception as e:
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
+        
+
+    async def get_last_telegram_bot_message(self):
+        """
+        Retrieve the last message sent by the Telegram bot in a direct chat.
+        
+        Returns:
+            dict: A dictionary containing status and either the message text or an error message
+        """
+        try:
+            # Call the underlying monitor method to get the last bot message
+            bot_message = await self.monitor.get_last_telegram_bot_message()
+            
+            if bot_message:
+                return {
+                    "status": "success", 
+                    "message": "Successfully retrieved bot message.",
+                    "bot_message": bot_message
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": "No message from Telegram bot found or no direct chat exists."
+                }
+        except Exception as e:
+            return {
+                "status": "error", 
+                "message": f"Failed to retrieve Telegram bot message: {str(e)}"
+            }

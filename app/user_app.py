@@ -75,52 +75,69 @@ def user_app(userid, tables_dict, password):
 
         if selected_platform == 'telegram':
             import re
-            # Only create the room if not already in session_state
             telegram_room_key = f'telegram_bot_room_id_{userid}'
-            asyncio.run(web_monitor.send_message_to_telegram_bot('login qr'))
-            time.sleep(5)
-            phone_number = st.text_input(
-                "Enter your phone number (with country code) for Telegram QR code",
-                key="telegram_phone_input",
-                placeholder="+1234567890"
-            )
-            phone_pattern = re.compile(r"^\+\d{10,15}$")
-            send_phone_disabled = not phone_pattern.match(phone_number)
-            if send_phone_disabled and phone_number:
-                st.warning("Phone number must start with '+' and contain 10-15 digits, e.g., +1234567890")
-            # Remove the button, send automatically if valid and entered
-            if phone_pattern.match(phone_number):
-                result = asyncio.run(web_monitor.send_message_to_telegram_bot(phone_number))
-
-                if not result or result.get("status") != "success":
-                    st.error("Failed to send phone number to Telegram bot. Please try again.")
-                else:
-                    time.sleep(5)
-                    login_code = st.text_input(
-                        "Login code sent to your Telegram. Enter the code here to generate QR code",
-                        key="telegram_code_input"
-                    )
-                    if st.button("Send Login Code to Telegram", key="send_telegram_code"):
-                        result = asyncio.run(web_monitor.send_message_to_telegram_bot(login_code))
-                        if not result or result.get("status") != "success":
-                            st.error("Failed to send login code to Telegram bot. Please try again.")
-                        else:
-                            time.sleep(5)
-                            if st.button("Generate QR Code"):
-                                if cooldown_remaining > 0:
-                                    st.sidebar.info(f"Please wait {cooldown_remaining // 60}:{cooldown_remaining % 60:02d} minutes before generating a new QR code.")
-                                else:
-                                    try:
-                                        with st.sidebar:
-                                            st.spinner(f"Generating QR Code for {selected_platform}...")
-                                            qr_code = asyncio.run(web_monitor.generate_qr_code_and_display(platform=selected_platform))
-                                            st.sidebar.image(qr_code, caption="Generated QR Code", use_container_width=True)
-                                            st.info("This QR code is valid for 5 minutes. Please generate a new one if needed.")
-                                        st.session_state[cooldown_key] = time.time()
-                                        st.session_state["last_qr_code"] = qr_code
-                                    except Exception as e:
-                                        st.error(f"Failed to generate QR code: {e}")
+            
+            # Initialize telegram session variables only if they don't exist yet
+            if 'telegram' not in st.session_state:
+                st.session_state['telegram'] = True
+            if 'telegram_login_qr_sent' not in st.session_state:
+                st.session_state['telegram_login_qr_sent'] = False
+            if 'telegram_phone_sent' not in st.session_state:
+                st.session_state['telegram_phone_sent'] = False
+            if 'telegram_code_sent' not in st.session_state:
+                st.session_state['telegram_code_sent'] = False
+            if 'telegram_finished' not in st.session_state:
+                st.session_state['telegram_finished'] = False
+            
                 
+            # Step 1: Send 'login qr' only when button is pressed
+            if not st.session_state['telegram_login_qr_sent']:
+                if st.button("Start Telegram Login"):
+                    asyncio.run(web_monitor.send_message_to_telegram_bot('login qr'))
+                    st.session_state['telegram_login_qr_sent'] = True
+                    st.rerun()
+
+            elif not st.session_state['telegram_phone_sent']:
+                # Step 2: Enter phone number and send only when button is pressed
+                phone_number = st.text_input(
+                    "Enter your phone number (with country code) for Telegram login",
+                    key="telegram_phone_input",
+                    placeholder="+1234567890"
+                )
+                phone_pattern = re.compile(r"^\+\d{10,15}$")
+                if phone_pattern.match(phone_number):
+                    if st.button("Send Phone Number"):
+                        result = asyncio.run(web_monitor.send_message_to_telegram_bot(phone_number))
+                        if not result or result.get("status") != "success":
+                            st.error("Failed to send phone number. Please try again.")
+                        else:
+                            st.session_state['telegram_phone_sent'] = True
+                            st.rerun()
+
+            elif not st.session_state['telegram_code_sent']:
+                # Step 3: Enter login code and send only when button is pressed
+                login_code = st.text_input(
+                    "Login code sent to your Telegram. Enter the code here to complete login",
+                    key="telegram_code_input"
+                )
+                if login_code and st.button("Send Login Code"):
+                    result = asyncio.run(web_monitor.send_message_to_telegram_bot(login_code))
+                    if not result or result.get("status") != "success":
+                        st.error("Failed to send login code. Please try again.")
+                    else:
+                        st.session_state['telegram_code_sent'] = True
+                        st.rerun()
+
+            elif not st.session_state['telegram_finished']:
+                st.info("Check your Telegram app for a login confirmation message.")
+                st.session_state['telegram_finished'] = False
+                st.session_state['telegram'] = True
+                st.session_state['telegram_login_qr_sent'] = False
+                st.session_state['telegram_phone_sent'] = False
+                st.session_state['telegram_code_sent'] = False
+                st.session_state['telegram_finished'] = False
+
+            
 
         if selected_platform != 'telegram':
             if st.button("Generate QR Code"):
@@ -245,44 +262,6 @@ def user_app(userid, tables_dict, password):
                 )
                 st.rerun()
             
-    # with tab2:
-    #     # Statistics tab
-    #     st.header("Statistics")
-    #     # Get chat IDs for this user and project
-    #     user_chats = chats.get_chats_by_user(userid)
-    #     user_chat_ids = set(chat['chatid'] for chat in user_chats)
-    #     # project_chat_ids = set(chats_projects.get_chats_ids_by_projects(selected_project_id))
-    #     # Only chats belonging to this user and project
-    #     # relevant_chat_ids = [chat_id for chat_id in user_chat_ids if chat_id in project_chat_ids]
-    #     if user_chat_ids:
-    #         # Count messages per chat from foo_2025-05-29.jsonl
-    #         import json
-    #         from collections import Counter
-    #         msg_counts = Counter()
-    #         try:
-    #             with open('app\menashe_2025-05-29.jsonl', 'r', encoding='utf-8') as f:
-    #                 for line in f:
-    #                     try:
-    #                         msg = json.loads(line)
-    #                         room_id = msg.get('room_id')
-    #                         if room_id:
-    #                             msg_counts[room_id] += 1
-    #                     except Exception:
-    #                         continue
-    #         except Exception as e:
-    #             st.warning(f"Could not read message file: {e}")
-    #         with st.spinner("Fetching room statistics..."):
-    #             stats_result = asyncio.run(web_monitor.get_room_stats(user_chat_ids))
-    #         if stats_result.get("status") == "success":
-    #             stats_df = pd.DataFrame(stats_result["room_stats"])
-    #             # Add message count column
-    #             stats_df['num_messages'] = stats_df['room_id'].apply(lambda rid: msg_counts.get(rid.split(':')[0], 0))
-    #             st.dataframe(stats_df, use_container_width=True, hide_index=True)
-    #         else:
-    #             st.error(f"Failed to fetch room stats: {stats_result.get('message', 'Unknown error')}")
-    #     else:
-    #         st.info("No chats found for this project.")
-        
     
     with tab3:
         # Account tab placeholder

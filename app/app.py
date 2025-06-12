@@ -174,4 +174,8 @@ else:
         st.session_state["logged_in"] = False
         st.session_state["role"] = None
         st.session_state["user"] = None
+        st.session_state["password"] = None
+        st.session_state["registration_mode"] = False
+        st.session_state["registration_success"] = False
+        st.session_state["registered_role"] = None
         st.rerun()
