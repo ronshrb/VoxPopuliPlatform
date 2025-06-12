@@ -1,7 +1,6 @@
 import bcrypt
 import streamlit as st
 import dbs
-import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime
 from web_monitor import WebMonitor
