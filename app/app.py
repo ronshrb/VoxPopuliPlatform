@@ -8,12 +8,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Import other modules AFTER page config
 import bcrypt
 import pandas as pd
 from user_app import user_app
 from researcher_app import researcher_app
-# from register_app import register_page
 import dbs
 
 
@@ -55,24 +53,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-db_name = "VoxPopuli" # change to your database name
+db_name = "VoxPopuli" 
 
 tables_dict = {
     "Users": dbs.UsersTable(),
-    "Projects": dbs.ProjectsTable(),
     "Chats": dbs.ChatsTable(),
-    "UserProjects": dbs.UserProjectsTable(),
-    "ChatsProjects": dbs.ChatProjectsTable(),
     "ChatsBlacklist": dbs.ChatsBlacklistTable(),
     "MessagesTable": dbs.MessagesTable(),
 }
 
-users, projects, chats, user_projects, chats_projects, chats_blacklist = (
+users, chats, chats_blacklist = (
     tables_dict["Users"],
-    tables_dict["Projects"],
     tables_dict["Chats"],
-    tables_dict["UserProjects"],
-    tables_dict["ChatsProjects"],
     tables_dict["ChatsBlacklist"],
 )
 
@@ -84,7 +76,7 @@ if "logged_in" not in st.session_state:
     st.session_state["registration_mode"] = False
     st.session_state["registration_success"] = False
     st.session_state["registered_role"] = None
-    # st.session_state["debug_mode"] = False
+
 
 # Main app
 
@@ -101,8 +93,6 @@ if not st.session_state["logged_in"]:
 
     # Column 1: Login Form
     with col1:
-        # st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-
         # Role selection and login
         role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
 
@@ -120,31 +110,35 @@ if not st.session_state["logged_in"]:
 
 
                 if user_data:
-                    # Get the stored hash from the database
-                    stored_hashed_password = user_data['HashedPassword']
-                    user_role = user_data['Role']
-                    # Check if role matches
-                    if role != user_role:
-                        st.error(f"This user is registered as a {user_role}, not a {role}.")
+                    if not user_data['Active']:
+                        st.error("User was disabled. Please check with the project's owners.")
+                    elif user_data['Deleted']:
+                        st.error("User was deleted.")
                     else:
-                        try:
-                            # Check if the provided password matches the hashed password
-                            if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
-                                # Login successful for both user and researcher roles
-                                st.session_state["logged_in"] = True
-                                st.session_state["role"] = user_role
-                                st.session_state["user"] = user_data['UserID']
-                                st.session_state['password'] = password
-                                st.success("Login successful!")
-                                st.rerun()
-                            else:
-                                st.error("Invalid password.")
-                        except Exception as e:
-                            st.error(f"Login error: {str(e)}")
+                        # Get the stored hash from the database
+                        stored_hashed_password = user_data['HashedPassword']
+                        user_role = user_data['Role']
+                        # Check if role matches
+                        if role != user_role:
+                            st.error(f"This user is registered as a {user_role}, not a {role}.")
+                        else:
+                            try:
+                                # Check if the provided password matches the hashed password
+                                if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                                    # Login successful for both user and researcher roles
+                                    st.session_state["logged_in"] = True
+                                    st.session_state["role"] = user_role
+                                    st.session_state["user"] = user_data['UserID']
+                                    st.session_state['password'] = password
+                                    st.success("Login successful!")
+                                    st.rerun()
+                                else:
+                                    st.error("Invalid password.")
+                            except Exception as e:
+                                st.error(f"Login error: {str(e)}")
                 else:
                     st.error("User not found. Please check your username or register.")
 
-        # st.markdown("</div>", unsafe_allow_html=True)
 
     # Column 2: Platform Information
     with col2:

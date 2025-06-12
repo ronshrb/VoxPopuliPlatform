@@ -64,21 +64,6 @@ class WebMonitor:
         else:
             return {"status": "error", "message": "Failed to accept invites."}
 
-    async def find_bridge_rooms(self):
-        """Find all bridge rooms for the configured platforms."""
-        success = await self.monitor.find_bridge_rooms()
-        if success:
-            return {"status": "success", "message": "Bridge rooms found successfully.", "rooms": self.monitor.bridge_rooms}
-        else:
-            return {"status": "error", "message": "Failed to find bridge rooms."}
-
-    async def monitor_messages(self):
-        """Start monitoring messages in bridge rooms."""
-        success = await self.monitor.monitor_messages()
-        if success:
-            return {"status": "success", "message": "Monitoring started successfully."}
-        else:
-            return {"status": "error", "message": "Failed to start monitoring messages."}
 
     async def generate_qr_code_and_display(self, platform='whatsapp'):
         """Generate a QR code for the selected platform and display it in the web app."""
@@ -124,7 +109,7 @@ class WebMonitor:
             st.error(f"An error occurred during login: {str(e)}")
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
     
-    async def get_joined_chats(self, group=True, chats_blacklist=[]):
+    async def get_joined_chats(self, group=False, chats_blacklist=[]):
         """Return a list of joined rooms/chats with platform info."""
         print(f"WebMonitor: Get joined chats for user {self.username}") 
         try:
@@ -133,7 +118,7 @@ class WebMonitor:
         except Exception as e:
             return {"status": "error", "message": f"Failed to get joined chats: {str(e)}"}
 
-    async def get_invited_chats(self, group=True, chats_blacklist=[]):
+    async def get_invited_chats(self, group=False, chats_blacklist=[]):
         print(f"WebMonitor: Get invited chats for user {self.username}") 
         """Return a list of invited (pending) rooms/chats with platform info."""
         try:
@@ -163,18 +148,6 @@ class WebMonitor:
                 return {"status": "error", "message": f"Failed to disable (leave) room {room_id}."}
         except Exception as e:
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
-
-
-    async def delete_user(self):
-        """Delete the current user from the Matrix server using the Synapse Admin API."""
-        try:
-            result = await self.monitor.delete_user()
-            if result is not None:
-                return {"status": "success", "message": "User deleted successfully.", "data": result}
-            else:
-                return {"status": "error", "message": "Failed to delete user."}
-        except Exception as e:
-            return {"status": "error", "message": f"An error occurred: {str(e)}"}
     
     async def get_room_stats(self, room_ids):
         """Get stats for a list of room_ids (number of members in each room)."""
@@ -192,5 +165,29 @@ class WebMonitor:
                 return {"status": "success", "message": "Password changed successfully."}
             else:
                 return {"status": "error", "message": "Failed to change password."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+    
+    async def send_message_to_telegram_bot(self, message):
+        """Send a message to the Telegram bot via the Matrix bridge."""
+        try:
+            result = await self.monitor.send_message_to_telegram_bot(message)
+            if result:
+                return {"status": "success", "message": "Message sent to Telegram bot."}
+            else:
+                return {"status": "error", "message": "Failed to send message to Telegram bot."}
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
+    async def delete_user(self):
+        """
+        Wrapper to delete a user from the Matrix server using the Synapse Admin API.
+        """
+        try:
+            result = await self.monitor.delete_user()
+            if result:
+                return {"status": "success", "message": "User deleted successfully."}
+            else:
+                return {"status": "error", "message": "Failed to delete user."}
         except Exception as e:
             return {"status": "error", "message": f"An error occurred: {str(e)}"}
