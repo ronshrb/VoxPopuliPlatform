@@ -346,7 +346,7 @@ def researcher_app(userid, tables_dict):
         st.header("User Management")
         st.markdown("Manage users in your project.")
 
-        tab1, tab2 = st.tabs(["Project's Users", "Register New User"])
+        tab1, tab2, tab3 = st.tabs(["Project's Users", "Register New User", "Account Settings"])
 
         with tab1: # project's users tab
             # Fetch users in the project
@@ -379,7 +379,10 @@ def researcher_app(userid, tables_dict):
                         if row['Delete']:  # if the user is marked for deletion, delete them
                             # Check if the user is trying to delete themselves
                             if curr_user_id == userid:
-                                st.warning("You cannot delete yourself from this page.")
+                                st.toast("❌ You cannot delete yourself from this page.")
+                                continue
+                            if row['Role'] == "Researcher":
+                                st.toast("❌ You cannot delete a researcher from this page. Please contact the project owner.")
                                 continue
                             # send delete request to the server
                             try:
@@ -392,16 +395,19 @@ def researcher_app(userid, tables_dict):
                                 # delete user from the database
                                 chats.disable_all_rooms_for_user(userid)
                                 users.delete_user(curr_user_id)
-                                st.success(f"User {curr_user_id} deleted successfully.")
+                                st.toast(f"✅ User {curr_user_id} deleted successfully.")
                                 any_change = True
                             except Exception as e:
-                                st.error(f"Failed to delete user {curr_user_id}: {str(e)}")
+                                st.toast(f"❌ Failed to delete user {curr_user_id}: {str(e)}")
                         elif row['Active'] != users.get_user_by_id(curr_user_id)['Active']: # if the active status has changed
                             try:
+                                if row['Role'] == "Researcher":
+                                    st.toast("❌ You cannot disable a researcher from this page. Please contact the project owner.")
+                                    continue
                                 users.change_active_status_for_user(curr_user_id)
                                 any_change = True
                                 if row['Active']:
-                                    st.success(f"User {curr_user_id} activated successfully.")
+                                    st.toast(f"✅ User {curr_user_id} activated successfully.")
                                 else:
                                     try: # send empty whitelist to stop pulling messages
                                         requests.post(
@@ -411,11 +417,11 @@ def researcher_app(userid, tables_dict):
                                             "room_ids": []
                                         })
                                     except Exception as e:
-                                        st.error(f"Failed to update user {curr_user_id} active status: {str(e)}")
+                                        st.toast(f"❌ Failed to update user {curr_user_id} active status: {str(e)}")
                                     else:
-                                        st.success(f"User {curr_user_id} deactivated successfully.")
+                                        st.toast(f"✅ User {curr_user_id} deactivated successfully.")
                             except Exception as e:
-                                st.error(f"Failed to update user {row['UserID']} active status: {str(e)}")
+                                st.toast(f"❌ Failed to update user {row['UserID']} active status: {str(e)}")
                     if any_change:
                         st.rerun()
 
@@ -492,4 +498,58 @@ def researcher_app(userid, tables_dict):
                                         st.success(f"Researcher {username} registered successfully!")
                                 except Exception as e:
                                     st.error(f"Registration error: {str(e)}")
+
+        with tab3:
+            # Account tab placeholder
+            st.header("Account Settings")
+            
+            st.markdown('---')
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                with st.form('change_password_form'):
+                    st.subheader('Change Password')
+                    new_password = st.text_input('New Password', type='password')
+                    confirm_password = st.text_input('Confirm New Password', type='password')
+                    hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    submitted = st.form_submit_button('Change Password')
+                    if submitted:
+                        if not new_password or not confirm_password:
+                            st.error('Please fill in both password fields.')
+                        elif new_password != confirm_password:
+                            st.error('Passwords do not match.')
+                        else:
+                            with st.spinner('Changing password...'):
+                                users.change_user_password(userid, hashed_password)
+                                password = new_password  # Update session state password
+                                st.success('Password changed successfully!')
+
+            # with col3:
+            #     with st.form('Disable Account'):
+            #         st.subheader('Delete Account')
+            #         st.warning('Danger Zone: Deleting your account is irreversible.')
+            #         if st.form_submit_button('Delete My Account'):
+            #             with st.spinner('Deleting your account...'):
+            #                 try:
+            #                     requests.post(f"{server}/api/user/destroy",
+            #                         json={
+            #                             "username": userid
+            #                         }
+            #                     )
+                                
+            #                     chats.disable_all_rooms_for_user(userid) # can be removed if the user is deleted?
+            #                     result = asyncio.run(web_monitor.delete_user())
+            #                     users.delete_user(userid)
+            #                     if result.get('status') == 'success':
+            #                         # users.delete_user(userid)
+            #                         st.success('User was deleted successfully!')
+            #                     else:
+            #                         st.error(f"Failed to delete user: {result.get('message', 'Unknown error')}")
+            #                     st.success('Your account has been deleted. Logging out...')
+            #                     st.session_state["logged_in"] = False
+            #                     st.session_state["role"] = None
+            #                     st.session_state["user"] = None
+            #                     st.rerun()
+            #                 except requests.exceptions.RequestException as e:
+            #                     st.error(f"Failed to delete account: {str(e)}")
+
 
