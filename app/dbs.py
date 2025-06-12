@@ -8,7 +8,6 @@ from io import StringIO
 load_dotenv()
 
 
-# Remove SQLAlchemy/Postgres setup from here, import from connectors instead
 engine = connectors.engine
 Session = connectors.Session
 session = connectors.session
@@ -188,34 +187,6 @@ class UsersTable:
         except Exception as e:
             session.rollback()
             print(f"Error in change_user_password: {e}")
-
-    # def get_whitelisted_rooms(self, userid):
-    #     """
-    #     Return a list of chat IDs (strings) of the user that appear in chat_projects.
-    #     """
-    #     try:
-    #         # Get all chat IDs for this user from chats table
-    #         active_chats = session.execute(
-    #             select(self.chats.c.chatid).where(self.chats.c.active == True & self.chats.c.userid == userid)
-    #         ).fetchall()
-    #         chat_ids = [row[0] for row in active_chats] if active_chats else []
-    #         if not chat_ids:
-    #             return []
-    #         # Get chat IDs that are also in chat_projects
-    #         whitelisted_chats = session.execute(
-    #             select(self.chats.c.chatid)
-    #             .where(
-    #                 self.chats.c.chatid.in_(
-    #                     select(chat_projects_table.c.chatid).where(chat_projects_table.c.chatid.in_(chat_ids))
-    #                 )
-    #             )
-    #         ).fetchall()
-    #         ids = [row[0] for row in whitelisted_chats] if whitelisted_chats else []
-    #         return ids
-    #     except Exception as e:
-    #         session.rollback()
-    #         print(f"Error in get_whitelisted_rooms: {e}")
-    #         return []
         
     def delete_user(self, user_id):
         """

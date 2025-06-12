@@ -12,33 +12,7 @@ users_db_pass = os.getenv("users_db_pass")
 db_name = os.getenv("db_name") 
 matrix_db_connection_string = os.getenv("matrix-db-connection-string")
 
-# cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
-# class postgres_connector:
-#     def __init__(self):
-#         self.connector = Connector()
-#         self.db_user = os.environ["users_db_user"]
-#         self.db_pass = os.environ["users_db_pass"]
-#         self.db_connection_string = os.environ["matrix-db-connection-string"] 
-
-#     def getconn(self):
-#         conn = self.connector.connect(
-#             self.db_connection_string,
-#             "pg8000",
-#             user=self.db_user,
-#             password=self.db_pass,
-#             db="Users"
-#         )
-#         return conn
-    
-#     def create_engine(self):
-#         return create_engine(
-#             "postgresql+pg8000://",
-#             creator=self.getconn,
-#         )
  
-
-
 class gcp_connector:
     def __init__(self):
         self.client = storage.Client()
@@ -51,17 +25,6 @@ class gcp_connector:
         return self.bucket
     
 
-    
-# d = gcp_connector()
-# print(d.get_buckets())
-# print(d.get_bucket())
-    
-
-# POSTGRES_URI = os.getenv("POSTGRES_URI")
-# engine = create_engine(POSTGRES_URI)
-# Session = sessionmaker(bind=engine)
-# session = Session()
-# metadata = MetaData()
 
 def getconn():
     with Connector() as connector:
