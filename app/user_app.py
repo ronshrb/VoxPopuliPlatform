@@ -285,9 +285,20 @@ def user_app(userid, tables_dict, password):
                         with st.spinner('Changing password...'):
                             result = asyncio.run(web_monitor.change_password(new_password))
                             if result.get('status') == 'success':
-                                users.change_user_password(userid, hashed_password)
-                                password = new_password  # Update session state password
-                                st.success('Password changed successfully!')
+                                json = {   # send to server
+                                                "username": userid,
+                                                "password": new_password
+                                            }
+                                result = requests.post(f"{server}/api/user/create", json=json)
+                                if not result.json().get("success"):
+                                    st.error(f"Error changing password for user on server: {result.json().get('message', 'Unknown error')}")
+                                    return
+                                else:
+                                    # st.success(f"User {userid} changed password successfully!")
+                                    users.change_user_password(userid, hashed_password)
+                                    password = new_password  # Update session state password
+                                    
+                                    st.success('Password changed successfully!')
                             else:
                                 st.error(f"Failed to change password: {result.get('message', 'Unknown error')}")
 
