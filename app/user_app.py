@@ -245,44 +245,6 @@ def user_app(userid, tables_dict, password):
                 )
                 st.rerun()
             
-    # with tab2:
-    #     # Statistics tab
-    #     st.header("Statistics")
-    #     # Get chat IDs for this user and project
-    #     user_chats = chats.get_chats_by_user(userid)
-    #     user_chat_ids = set(chat['chatid'] for chat in user_chats)
-    #     # project_chat_ids = set(chats_projects.get_chats_ids_by_projects(selected_project_id))
-    #     # Only chats belonging to this user and project
-    #     # relevant_chat_ids = [chat_id for chat_id in user_chat_ids if chat_id in project_chat_ids]
-    #     if user_chat_ids:
-    #         # Count messages per chat from foo_2025-05-29.jsonl
-    #         import json
-    #         from collections import Counter
-    #         msg_counts = Counter()
-    #         try:
-    #             with open('app\menashe_2025-05-29.jsonl', 'r', encoding='utf-8') as f:
-    #                 for line in f:
-    #                     try:
-    #                         msg = json.loads(line)
-    #                         room_id = msg.get('room_id')
-    #                         if room_id:
-    #                             msg_counts[room_id] += 1
-    #                     except Exception:
-    #                         continue
-    #         except Exception as e:
-    #             st.warning(f"Could not read message file: {e}")
-    #         with st.spinner("Fetching room statistics..."):
-    #             stats_result = asyncio.run(web_monitor.get_room_stats(user_chat_ids))
-    #         if stats_result.get("status") == "success":
-    #             stats_df = pd.DataFrame(stats_result["room_stats"])
-    #             # Add message count column
-    #             stats_df['num_messages'] = stats_df['room_id'].apply(lambda rid: msg_counts.get(rid.split(':')[0], 0))
-    #             st.dataframe(stats_df, use_container_width=True, hide_index=True)
-    #         else:
-    #             st.error(f"Failed to fetch room stats: {stats_result.get('message', 'Unknown error')}")
-    #     else:
-    #         st.info("No chats found for this project.")
-        
     
     with tab3:
         # Account tab placeholder
