@@ -500,13 +500,13 @@ class MessagesTable:
         if 'anonymized_content' in df.columns:
 
             df['anonymized_content'] = df['anonymized_content'].str.replace(
-                r"(⚠️ Your message was not bridged: You're not logged in|" \
-                "Failed to bridge photo, please view it on the WhatsApp app|" \
-                "↷ Forwarded|" \
-                "\[ANONYMIZATION_ERROR\] ↷ Forwarded)|" \
-                "Unknown message type, please view it on the WhatsApp app|" \
-                "Sorry, I can only process text. If you can describe the image in text, I will do my best to anonymize it.|" \
-                "Okay, I understand. I will anonymize any message you send me according to the rules you've provided. Send me the message you want me to anonymize.",
+                r"(⚠️ Your message was not bridged: You're not logged in|"
+                r"Failed to bridge photo, please view it on the WhatsApp app|"
+                r"↷ Forwarded|"
+                r"\[ANONYMIZATION_ERROR\] ↷ Forwarded|"
+                r"Unknown message type, please view it on the WhatsApp app|"
+                r"Sorry, I can only process text. If you can describe the image in text, I will do my best to anonymize it.|"
+                r"Okay, I understand. I will anonymize any message you send me according to the rules you've provided. Send me the message you want me to anonymize.)",
                 '', regex=True
             ).str.strip()
             df = df[df['anonymized_content'] != '']
