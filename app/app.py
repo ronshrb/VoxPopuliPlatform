@@ -94,7 +94,7 @@ if not st.session_state["logged_in"]:
     # Column 1: Login Form
     with col1:
         # Role selection and login
-        role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
+        # role = st.selectbox("Select Role", ["User", "Researcher"], key="role_select")
 
         # Set default user and password to blank when first entering the site
         userid = st.text_input("Username", key="userid_input", value="")
@@ -118,24 +118,20 @@ if not st.session_state["logged_in"]:
                         # Get the stored hash from the database
                         stored_hashed_password = user_data['HashedPassword']
                         user_role = user_data['Role']
-                        # Check if role matches
-                        if role != user_role:
-                            st.error(f"This user is registered as a {user_role}, not a {role}.")
-                        else:
-                            try:
-                                # Check if the provided password matches the hashed password
-                                if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
-                                    # Login successful for both user and researcher roles
-                                    st.session_state["logged_in"] = True
-                                    st.session_state["role"] = user_role
-                                    st.session_state["user"] = user_data['UserID']
-                                    st.session_state['password'] = password
-                                    st.success("Login successful!")
-                                    st.rerun()
-                                else:
-                                    st.error("Invalid password.")
-                            except Exception as e:
-                                st.error(f"Login error: {str(e)}")
+                        try:
+                            # Check if the provided password matches the hashed password
+                            if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                                # Login successful for both user and researcher roles
+                                st.session_state["logged_in"] = True
+                                st.session_state["role"] = user_role
+                                st.session_state["user"] = user_data['UserID']
+                                st.session_state['password'] = password
+                                st.success("Login successful!")
+                                st.rerun()
+                            else:
+                                st.error("Invalid password.")
+                        except Exception as e:
+                            st.error(f"Login error: {str(e)}")
                 else:
                     st.error("User not found. Please check your username or register.")
 

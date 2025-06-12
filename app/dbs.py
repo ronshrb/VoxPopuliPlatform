@@ -539,11 +539,10 @@ class MessagesTable:
             summary['User'] = summary['User'].astype(str)
             summary.sort_values(by=['Chat ID', 'User'], inplace=True)
             summary.reset_index(drop=True, inplace=True)
-
             # Merge with chats_df to get chat names
-            summary = summary.merge(chats_df[['ChatID', 'Chat Name', 'Platform', 'Donated', 'CreatedAt']], left_on='Chat ID', right_on='ChatID', how='left')
-            summary.drop(columns=['ChatID'], inplace=True)
-            desired_order = ['Chat ID', 'User', 'Chat Name', 'Total Messages', 'Donated', 'Platform', 'CreatedAt']
+            summary = summary.merge(chats_df[['ChatID','UserID', 'Chat Name', 'Platform', 'Donated', 'CreatedAt']], left_on=['Chat ID','User'], right_on=['ChatID','UserID'], how='left')
+            summary.drop(columns=['ChatID','UserID', 'Donated'], inplace=True)
+            desired_order = ['Chat ID', 'User', 'Chat Name', 'Total Messages', 'Platform', 'CreatedAt']
             summary = summary[desired_order]
 
             return summary
