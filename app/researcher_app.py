@@ -102,7 +102,7 @@ def researcher_app(userid, tables_dict):
     )
     
         
-    # Project Analytics Page (Blank)
+   
     if menu == "Chats Overview":
         st.header("Chats Overview")
         tab1, tab2 = st.tabs(["Analysis", "Chats"])
